@@ -47,58 +47,58 @@ enum Expr {
     Fun(Fun),
 }
 
-fn parse_const(pair: Pair<'_, Rule>) -> Result<Expr, String> {
+fn parse_const(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let pair = pair.into_inner().next().unwrap();
     match pair.as_rule() {
-        Rule::string => Ok(Expr::Const(Const::String(pair.as_str().to_string()))),
+        Rule::string => Ok(Box::new(Expr::Const(Const::String(pair.as_str().to_string())))),
         Rule::number => {
             let value = pair.as_str().parse::<f64>().unwrap();
-            Ok(Expr::Const(Const::Numeric(value)))
+            Ok(Box::new(Expr::Const(Const::Numeric(value))))
         }
         _ => Err(format!("Unknown const type: `{:?}`", pair))
     }
 }
 
-fn parse_let_in(pair: Pair<'_, Rule>) -> Result<Expr, String> {
+fn parse_let_in(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let mut inner: Pairs<'_, Rule> = pair.into_inner();
     let ident = inner.next().unwrap();
     let value = inner.next().unwrap();
     let in_part = inner.next().unwrap();
 
-    Ok(Expr::LetIn(LetIn {
+    Ok(Box::new(Expr::LetIn(LetIn {
         var: ident.as_str().to_string(),
-        value: Box::new(parse_pair(value)?),
-        in_part: Box::new(parse_pair(in_part)?),
-    }))
+        value: parse_pair(value)?,
+        in_part: parse_pair(in_part)?,
+    })))
 }
 
-fn parse_ident(pair: Pair<'_, Rule>) -> Result<Expr, String> {
-    Ok(Expr::Ident(pair.as_str().to_string()))
+fn parse_ident(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
+    Ok(Box::new(Expr::Ident(pair.as_str().to_string())))
 }
 
-fn parse_fun(pair: Pair<'_, Rule>) -> Result<Expr, String> {
+fn parse_fun(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let mut inner: Pairs<'_, Rule> = pair.into_inner();
     let ident = inner.next().unwrap();
     let body = inner.next().unwrap();
 
-    Ok(Expr::Fun(Fun {
+    Ok(Box::new(Expr::Fun(Fun {
         param: ident.as_str().to_string(),
-        body: Box::new(parse_pair(body)?),
-    }))
+        body: parse_pair(body)?,
+    })))
 }
 
-fn parse_bind(pair: Pair<'_, Rule>) -> Result<Expr, String> {
+fn parse_bind(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let mut inner: Pairs<'_, Rule> = pair.into_inner();
     let arg = inner.next().unwrap();
     let fun = inner.next().unwrap();
 
-    Ok(Expr::Bind(Bind {
-        arg: Box::new(parse_pair(arg)?),
-        fun: Box::new(parse_pair(fun)?),
-    }))
+    Ok(Box::new(Expr::Bind(Bind {
+        arg: parse_pair(arg)?,
+        fun: parse_pair(fun)?,
+    })))
 }
 
-fn parse_pair(pair: Pair<'_, Rule>) -> Result<Expr, String> {
+fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let rule = pair.as_rule();
     match rule {
         Rule::constant => parse_const(pair),
@@ -112,7 +112,7 @@ fn parse_pair(pair: Pair<'_, Rule>) -> Result<Expr, String> {
     }
 }
 
-fn parse_sane(input: &str) -> Result<Expr, String> {
+fn parse_sane(input: &str) -> Result<Box<Expr>, String> {
     let parsed = SaneParser::parse(Rule::expr, input)
         .expect("Can't parse")
         .next()
@@ -126,23 +126,23 @@ fn parse_sane(input: &str) -> Result<Expr, String> {
 
 type Stack = Vec<(String, Box<Expr>)>;
 
-fn execute_sane(input: &str) -> Result<Expr, String> {
+fn execute_sane(input: &str) -> Result<Box<Expr>, String> {
     let expr = parse_sane(input)?;
     let stack = &mut vec![];
     execute(expr, stack)
 }
 
-fn execute(expr: Expr, stack: &mut Stack) -> Result<Expr, String> {
-    match expr {
+fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
+    match *expr {
         Expr::LetIn(let_in) => {
-            stack.push((let_in.var.clone(), Box::new(*let_in.value)));
-            let result = execute(*let_in.in_part, stack);
+            stack.push((let_in.var.clone(), let_in.value));
+            let result = execute(let_in.in_part, stack);
             stack.pop();
             result
         },
         // Expr::Ident(ident) => {
         //     if let Some(item) = stack.iter().rev().find(|item| { item.0 == ident}) {
-        //         Ok(*item.1)
+        //         Ok(item.1)
         //     } else {
         //         Err(format!("Ident `{:?}` not found", ident))
         //     }
@@ -154,40 +154,41 @@ fn execute(expr: Expr, stack: &mut Stack) -> Result<Expr, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ops::Deref;
 
     #[test]
     fn parse_number() {
-        let result = parse_sane("-23.1").unwrap();
+        let result = *parse_sane("-23.1").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(-23.1)));
     }
 
     #[test]
     fn parse_string() {
-        let result = parse_sane("\"test\"").unwrap();
+        let result = *parse_sane("\"test\"").unwrap();
         assert_eq!(result, Expr::Const(Const::String("test".to_string())));
     }
 
     #[test]
     fn parse_let_in() {
-        let result = parse_sane("let a = 1 in a").unwrap();
+        let result = *parse_sane("let a = 1 in a").unwrap();
         assert_eq!(result, Expr::LetIn(LetIn { var: "a".to_string(), value: Box::new(Expr::Const(Const::Numeric(1.0))), in_part: Box::new(Expr::Ident("a".to_string())) }));
     }
 
     #[test]
     fn parse_bind() {
-        let result = parse_sane("1 -> f").unwrap();
+        let result = *parse_sane("1 -> f").unwrap();
         assert_eq!(result, Expr::Bind(Bind { arg: Box::new(Expr::Const(Const::Numeric(1.0))), fun: Box::new(Expr::Ident("f".to_string())) }));
     }
 
     #[test]
     fn parse_fun() {
-        let result = parse_sane("fun a => a").unwrap();
+        let result = *parse_sane("fun a => a").unwrap();
         assert_eq!(result, Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())) }));
     }
 
     #[test]
     fn test_execute() {
-        let result = execute_sane("let a = 1 in a").unwrap();
+        let result = *execute_sane("let a = 1 in a").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(-23.1)));
     }
 }
