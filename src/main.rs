@@ -13,32 +13,32 @@ fn main() {}
 #[grammar = "sane.pest"]
 pub struct SaneParser;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct LetIn {
     pub var: String,
     pub value: Box<Expr>,
     pub in_part: Box<Expr>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Bind {
     pub arg: Box<Expr>,
     pub fun: Box<Expr>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Fun {
     pub param: String,
     pub body: Box<Expr>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Const {
     String(String),
     Numeric(f64),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Expr {
     LetIn(LetIn),
     Const(Const),
@@ -140,13 +140,13 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
             stack.pop();
             result
         },
-        // Expr::Ident(ident) => {
-        //     if let Some(item) = stack.iter().rev().find(|item| { item.0 == ident}) {
-        //         Ok(item.1)
-        //     } else {
-        //         Err(format!("Ident `{:?}` not found", ident))
-        //     }
-        // },
+        Expr::Ident(ident) => {
+            if let Some(item) = stack.iter().rev().find(|item| { item.0 == ident}) {
+                Ok(item.1.clone())  // might be inefficient
+            } else {
+                Err(format!("Ident `{:?}` not found", ident))
+            }
+        },
         _ => Ok(expr)
     }
 }
@@ -189,6 +189,6 @@ mod tests {
     #[test]
     fn test_execute() {
         let result = *execute_sane("let a = 1 in a").unwrap();
-        assert_eq!(result, Expr::Const(Const::Numeric(-23.1)));
+        assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
     }
 }
