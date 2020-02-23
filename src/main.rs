@@ -141,12 +141,22 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
             result
         },
         Expr::Ident(ident) => {
-            if let Some(item) = stack.iter().rev().find(|item| { item.0 == ident}) {
-                Ok(item.1.clone())  // might be inefficient
+            if let Some(item) = stack.iter().rev().find(|item| { item.0 == ident }) {
+                execute(item.1.clone(), stack)  // TODO might be inefficient (optimize referencing)
             } else {
                 Err(format!("Ident `{:?}` not found", ident))
             }
         },
+        Expr::Bind(Bind { arg, fun }) => {
+            if let Expr::Fun(Fun { param, body }) = *execute(fun.clone(), stack)? {
+                stack.push((param.clone(), arg));
+                let result = execute(body, stack);
+                stack.pop();
+                result
+            } else {
+                Err(format!("Expr `{:?}` is not a function", fun))
+            }
+        }
         _ => Ok(expr)
     }
 }
@@ -187,8 +197,32 @@ mod tests {
     }
 
     #[test]
-    fn test_execute() {
+    fn test_execute_let_0() {
         let result = *execute_sane("let a = 1 in a").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
+    }
+
+    #[test]
+    fn test_execute_let_1() {
+        let result = *execute_sane("let a = let b = 1 in b in a").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
+    }
+
+    #[test]
+    fn test_execute_bind_0() {
+        let result = *execute_sane("2 -> fun a => a").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
+    }
+
+    #[test]
+    fn test_execute_bind_1() {
+        let result = *execute_sane("let f = fun a => a in 2 -> f").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
+    }
+
+    #[test]
+    fn test_execute_bind_2() {
+        let result = *execute_sane("let f = 3 in 2 -> f").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
     }
 }
