@@ -1,0 +1,41 @@
+WHITESPACE = _{ " " | "\n" }
+
+number = @{
+    "-"?
+    ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+    ~ ("." ~ ASCII_DIGIT*)?
+    ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+}
+
+string_quoted = _{ "\"" ~ string ~ "\"" }
+string = @{ char* }
+char = _{
+    !("\"" | "\\") ~ ANY
+    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+
+ident = @{ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )*  }
+
+let_in = { "let" ~ ident ~ "=" ~ expr ~ "in" ~ expr }
+fun = { "fun" ~ ident ~ "=>" ~ expr }
+bind = { term ~ "->" ~ expr }
+list = { "[" ~ expr? ~ (";" ~ expr)* ~ "]" }
+structure = { "{" ~ field_value? ~ (";" ~ field_value)* ~ "}" }
+field_value = { ident ~ ":" ~ expr }
+
+expr = _{ let_in | fun | bind | structure | list | term }
+term = _{  "(" ~ expr ~ ")" | ident | constant }
+constant = { number | string_quoted }
+file = { SOI ~ expr ~ EOI }
+
+// let a = "   abc  " in
+// let b = [1; 2; fun a => 3] in
+// let c = { a: 1; b: {a: [1; 2; 3]}; c: fun a => b } in
+// let map = fun list =>
+//   fun f =>
+//     let h = list -> head in
+//     let t = list -> tail in
+//     (f -> tail -> map) -> (h -> f) -> join
+// in a -> b -> map
+//
