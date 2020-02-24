@@ -5,7 +5,6 @@ extern crate pest_derive;
 
 use pest::Parser;
 use pest::iterators::{Pair, Pairs};
-use std::borrow::Borrow;
 
 fn main() {}
 
@@ -33,6 +32,11 @@ struct Fun {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+struct List {
+    pub items: Vec<Box<Expr>>
+}
+
+#[derive(Debug, PartialEq, Clone)]
 enum Const {
     String(String),
     Numeric(f64),
@@ -45,6 +49,7 @@ enum Expr {
     Ident(String),
     Bind(Bind),
     Fun(Fun),
+    List(List),
 }
 
 fn parse_const(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
@@ -98,6 +103,15 @@ fn parse_bind(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     })))
 }
 
+fn parse_list(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
+    let mut items: Vec<Box<Expr>> = vec![];
+
+    for item in pair.into_inner() {
+        items.push(parse_pair(item)?);
+    }
+    Ok(Box::new(Expr::List(List { items })))
+}
+
 fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let rule = pair.as_rule();
     match rule {
@@ -106,6 +120,7 @@ fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
         Rule::ident => parse_ident(pair),
         Rule::bind => parse_bind(pair),
         Rule::fun => parse_fun(pair),
+        Rule::list => parse_list(pair),
         _ => {
             Err(format!("Unknown rule `{:?}`", rule))
         }
@@ -139,14 +154,14 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
             let result = execute(let_in.in_part, stack);
             stack.pop();
             result
-        },
+        }
         Expr::Ident(ident) => {
             if let Some(item) = stack.iter().rev().find(|item| { item.0 == ident }) {
                 execute(item.1.clone(), stack)  // TODO might be inefficient (optimize referencing)
             } else {
                 Err(format!("Ident `{:?}` not found", ident))
             }
-        },
+        }
         Expr::Bind(Bind { arg, fun }) => {
             if let Expr::Fun(Fun { param, body }) = *execute(fun.clone(), stack)? {
                 stack.push((param.clone(), arg));
@@ -164,7 +179,6 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ops::Deref;
 
     #[test]
     fn parse_number() {
@@ -222,7 +236,50 @@ mod tests {
 
     #[test]
     fn test_execute_bind_2() {
-        let result = *execute_sane("let f = 3 in 2 -> f").unwrap();
-        assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
+        let result = *execute_sane("let f = fun a => fun b => b in 1 -> 2 -> f").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
+    }
+
+    #[test]
+    fn test_execute_array_0() {
+        let result = *execute_sane("[1; \"two\"; fun a => a]").unwrap();
+        assert_eq!(result, Expr::List(
+            List {
+                items: vec![
+                    Box::new(Expr::Const(Const::Numeric(1.0))),
+                    Box::new(Expr::Const(Const::String("two".to_string()))),
+                    Box::new(Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())) }))
+                ]
+            }
+        ));
+    }
+
+    #[test]
+    fn test_execute_array_1() {
+        let result = *execute_sane("[1; [2; [3]]]").unwrap();
+        assert_eq!(
+            result,
+            Expr::List(
+                List {
+                    items: vec![
+                        Box::new(Expr::Const(Const::Numeric(1.0))),
+                        Box::new(Expr::List(
+                            List {
+                                items: vec![
+                                    Box::new(Expr::Const(Const::Numeric(2.0))),
+                                    Box::new(Expr::List(
+                                        List {
+                                            items: vec![
+                                                Box::new(Expr::Const(Const::Numeric(3.0)))
+                                            ]
+                                        }
+                                    ))
+                                ]
+                            }
+                        ))
+                    ]
+                }
+            )
+        );
     }
 }
