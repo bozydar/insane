@@ -120,7 +120,6 @@ fn parse_list(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
 }
 
 fn sane_head(param: Box<Expr>) -> Result<Box<Expr>, String> {
-    println!("{:?}", param);
     match *param {
         Expr::List(List { items }) => {
             if let Some(item) = items.first() {
@@ -196,8 +195,6 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
             }
         }
         Expr::Bind(Bind { arg, fun }) => {
-            // TODO Looks like it has problems with binding lists to functions
-            println!("BBBBIIINNNDDDD");
             match *execute(fun.clone(), stack)? {
                 Expr::Fun(Fun { param, body }) => {
                     stack.push((param.clone(), arg));
@@ -206,7 +203,6 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
                     result
                 },
                 Expr::BuildIn(build_in) => {
-                    println!("HHHHHHHHHHHHHEEEEE");
                     match build_in {
                         BuildIn::Head => sane_head(arg),
                         BuildIn::Tail => sane_tail(arg)
@@ -224,118 +220,118 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn parse_number() {
-    //     let result = *parse_sane("-23.1").unwrap();
-    //     assert_eq!(result, Expr::Const(Const::Numeric(-23.1)));
-    // }
-    //
-    // #[test]
-    // fn parse_string() {
-    //     let result = *parse_sane("\"test\"").unwrap();
-    //     assert_eq!(result, Expr::Const(Const::String("test".to_string())));
-    // }
-    //
-    // #[test]
-    // fn parse_let_in() {
-    //     let result = *parse_sane("let a = 1 in a").unwrap();
-    //     assert_eq!(result, Expr::LetIn(LetIn { var: "a".to_string(), value: Box::new(Expr::Const(Const::Numeric(1.0))), in_part: Box::new(Expr::Ident("a".to_string())) }));
-    // }
-    //
-    // #[test]
-    // fn parse_bind() {
-    //     let result = *parse_sane("1 -> f").unwrap();
-    //     assert_eq!(result, Expr::Bind(Bind { arg: Box::new(Expr::Const(Const::Numeric(1.0))), fun: Box::new(Expr::Ident("f".to_string())) }));
-    // }
-    //
-    // #[test]
-    // fn parse_fun() {
-    //     let result = *parse_sane("fun a => a").unwrap();
-    //     assert_eq!(result, Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())) }));
-    // }
-    //
-    // #[test]
-    // fn test_execute_let_0() {
-    //     let result = *execute_sane("let a = 1 in a").unwrap();
-    //     assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
-    // }
-    //
-    // #[test]
-    // fn test_execute_let_1() {
-    //     let result = *execute_sane("let a = let b = 1 in b in a").unwrap();
-    //     assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
-    // }
-    //
-    // #[test]
-    // fn test_execute_bind_0() {
-    //     let result = *execute_sane("2 -> fun a => a").unwrap();
-    //     assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
-    // }
-    //
-    // #[test]
-    // fn test_execute_bind_1() {
-    //     let result = *execute_sane("let f = fun a => a in 2 -> f").unwrap();
-    //     assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
-    // }
-    //
-    // #[test]
-    // fn test_execute_bind_2() {
-    //     let result = *execute_sane("let f = fun a => fun b => b in 1 -> 2 -> f").unwrap();
-    //     assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
-    // }
-    //
-    // #[test]
-    // fn test_execute_array_0() {
-    //     let result = *execute_sane("[1; \"two\"; fun a => a]").unwrap();
-    //     assert_eq!(result, Expr::List(
-    //         List {
-    //             items: vec![
-    //                 Box::new(Expr::Const(Const::Numeric(1.0))),
-    //                 Box::new(Expr::Const(Const::String("two".to_string()))),
-    //                 Box::new(Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())) }))
-    //             ]
-    //         }
-    //     ));
-    // }
-    //
-    // #[test]
-    // fn test_execute_array_1() {
-    //     let result = *execute_sane("[1; [2; [3]]]").unwrap();
-    //     assert_eq!(
-    //         result,
-    //         Expr::List(
-    //             List {
-    //                 items: vec![
-    //                     Box::new(Expr::Const(Const::Numeric(1.0))),
-    //                     Box::new(Expr::List(
-    //                         List {
-    //                             items: vec![
-    //                                 Box::new(Expr::Const(Const::Numeric(2.0))),
-    //                                 Box::new(Expr::List(
-    //                                     List {
-    //                                         items: vec![
-    //                                             Box::new(Expr::Const(Const::Numeric(3.0)))
-    //                                         ]
-    //                                     }
-    //                                 ))
-    //                             ]
-    //                         }
-    //                     ))
-    //                 ]
-    //             }
-    //         )
-    //     );
-    // }
-    //
-    // #[test]
-    // fn test_execute_head_0() {
-    //     let result = *execute_sane("head").unwrap();
-    //     assert_eq!(result, Expr::BuildIn(BuildIn::Head));
-    // }
+    #[test]
+    fn parse_number() {
+        let result = *parse_sane("-23.1").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(-23.1)));
+    }
+
+    #[test]
+    fn parse_string() {
+        let result = *parse_sane("\"test\"").unwrap();
+        assert_eq!(result, Expr::Const(Const::String("test".to_string())));
+    }
+
+    #[test]
+    fn parse_let_in() {
+        let result = *parse_sane("let a = 1 in a").unwrap();
+        assert_eq!(result, Expr::LetIn(LetIn { var: "a".to_string(), value: Box::new(Expr::Const(Const::Numeric(1.0))), in_part: Box::new(Expr::Ident("a".to_string())) }));
+    }
+
+    #[test]
+    fn parse_bind() {
+        let result = *parse_sane("1 -> f").unwrap();
+        assert_eq!(result, Expr::Bind(Bind { arg: Box::new(Expr::Const(Const::Numeric(1.0))), fun: Box::new(Expr::Ident("f".to_string())) }));
+    }
+
+    #[test]
+    fn parse_fun() {
+        let result = *parse_sane("fun a => a").unwrap();
+        assert_eq!(result, Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())) }));
+    }
+
+    #[test]
+    fn test_execute_let_0() {
+        let result = *execute_sane("let a = 1 in a").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
+    }
+
+    #[test]
+    fn test_execute_let_1() {
+        let result = *execute_sane("let a = let b = 1 in b in a").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
+    }
+
+    #[test]
+    fn test_execute_bind_0() {
+        let result = *execute_sane("2 -> fun a => a").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
+    }
+
+    #[test]
+    fn test_execute_bind_1() {
+        let result = *execute_sane("let f = fun a => a in 2 -> f").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
+    }
+
+    #[test]
+    fn test_execute_bind_2() {
+        let result = *execute_sane("let f = fun a => fun b => b in 1 -> 2 -> f").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
+    }
+
+    #[test]
+    fn test_execute_array_0() {
+        let result = *execute_sane("[1; \"two\"; fun a => a]").unwrap();
+        assert_eq!(result, Expr::List(
+            List {
+                items: vec![
+                    Box::new(Expr::Const(Const::Numeric(1.0))),
+                    Box::new(Expr::Const(Const::String("two".to_string()))),
+                    Box::new(Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())) }))
+                ]
+            }
+        ));
+    }
+
+    #[test]
+    fn test_execute_array_1() {
+        let result = *execute_sane("[1; [2; [3]]]").unwrap();
+        assert_eq!(
+            result,
+            Expr::List(
+                List {
+                    items: vec![
+                        Box::new(Expr::Const(Const::Numeric(1.0))),
+                        Box::new(Expr::List(
+                            List {
+                                items: vec![
+                                    Box::new(Expr::Const(Const::Numeric(2.0))),
+                                    Box::new(Expr::List(
+                                        List {
+                                            items: vec![
+                                                Box::new(Expr::Const(Const::Numeric(3.0)))
+                                            ]
+                                        }
+                                    ))
+                                ]
+                            }
+                        ))
+                    ]
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn test_execute_head_0() {
+        let result = *execute_sane("head").unwrap();
+        assert_eq!(result, Expr::BuildIn(BuildIn::Head));
+    }
 
     #[test]
     fn test_execute_head_1() {
         let result = *execute_sane("[1] -> head").unwrap();
-        assert_eq!(result,  Expr::Const(Const::Numeric(2.0)));
+        assert_eq!(result,  Expr::Const(Const::Numeric(1.0)));
     }
 }

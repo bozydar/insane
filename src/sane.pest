@@ -27,8 +27,8 @@ list = { "[" ~ expr? ~ (";" ~ expr)* ~ "]" }
 structure = { "{" ~ field_value? ~ (";" ~ field_value)* ~ "}" }
 field_value = { ident ~ ":" ~ expr }
 
-expr = _{ let_in | fun | bind | structure | list | term }
-term = _{  "(" ~ expr ~ ")" | ident | constant }
+expr = _{ let_in | fun | bind | term }
+term = _{  "(" ~ expr ~ ")" | structure | list | ident | constant }
 constant = { number | string_quoted }
 file = { SOI ~ expr ~ EOI }
 
