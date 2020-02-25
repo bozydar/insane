@@ -39,7 +39,7 @@ struct List {
 #[derive(Debug, PartialEq, Clone)]
 enum BuildIn {
     Head,
-    Tail
+    Tail,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -56,7 +56,7 @@ enum Expr {
     Bind(Bind),
     Fun(Fun),
     List(List),
-    BuildIn(BuildIn)
+    BuildIn(BuildIn),
 }
 
 fn parse_const(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
@@ -135,8 +135,14 @@ fn sane_head(param: Box<Expr>) -> Result<Box<Expr>, String> {
 fn sane_tail(param: Box<Expr>) -> Result<Box<Expr>, String> {
     match *param {
         Expr::List(List { items }) => {
-            Ok(Box::new(Expr::List(List { items: items[1..].to_vec() })))
-        },
+            let new_items =
+                if items.is_empty() {
+                    vec![]
+                } else {
+                    items[1..].to_vec()
+                };
+            Ok(Box::new(Expr::List(List { items: new_items })))
+        }
         _ => Err("Not a list".to_string())
     }
 }
@@ -201,17 +207,16 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
                     let result = execute(body, stack);
                     stack.pop();
                     result
-                },
+                }
                 Expr::BuildIn(build_in) => {
                     match build_in {
                         BuildIn::Head => sane_head(arg),
                         BuildIn::Tail => sane_tail(arg)
-
                     }
                 }
                 _ => Err(format!("Expr `{:?}` is not a function", fun))
             }
-        },
+        }
         _ => Ok(expr)
     }
 }
@@ -332,6 +337,38 @@ mod tests {
     #[test]
     fn test_execute_head_1() {
         let result = *execute_sane("[1] -> head").unwrap();
-        assert_eq!(result,  Expr::Const(Const::Numeric(1.0)));
+        assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
+    }
+
+    #[test]
+    fn test_execute_tail_0() {
+        let result = *execute_sane("[] -> tail").unwrap();
+        assert_eq!(result, Expr::List(
+            List {
+                items: vec![]
+            }
+        ));
+    }
+
+    #[test]
+    fn test_execute_tail_1() {
+        let result = *execute_sane("[1] -> tail").unwrap();
+        assert_eq!(result, Expr::List(
+            List {
+                items: vec![]
+            }
+        ));
+    }
+
+    #[test]
+    fn test_execute_tail_2() {
+        let result = *execute_sane("[1;2] -> tail").unwrap();
+        assert_eq!(result, Expr::List(
+            List {
+                items: vec![
+                    Box::new(Expr::Const(Const::Numeric(2.0)))
+                ]
+            }
+        ));
     }
 }
