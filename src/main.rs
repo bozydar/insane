@@ -2,9 +2,15 @@ extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
+#[macro_use]
+extern crate lazy_static;
+
+
+use std::collections::HashMap;
 
 use pest::Parser;
 use pest::iterators::{Pair, Pairs};
+use std::borrow::BorrowMut;
 
 fn main() {}
 
@@ -29,6 +35,7 @@ struct Bind {
 struct Fun {
     pub param: String,
     pub body: Box<Expr>,
+    pub env: Stack,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -40,12 +47,14 @@ struct List {
 enum BuildIn {
     Head,
     Tail,
+    Eq,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 enum Const {
     String(String),
     Numeric(f64),
+    Bool(bool),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -96,6 +105,7 @@ fn parse_fun(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     Ok(Box::new(Expr::Fun(Fun {
         param: ident.as_str().to_string(),
         body: parse_pair(body)?,
+        env: vec![],
     })))
 }
 
@@ -161,6 +171,30 @@ fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
         }
     }
 }
+//
+// fn sane_eq_2(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
+//     // TODO
+//     // 1. Introduce boolean
+//     // 2. From this function return another function which returns true when its argument equal to this pair
+//     // (autocurrying)
+// }
+
+fn sane_eq(param: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
+    match *param {
+        Expr::List(List { items }) => {
+            if let (Some(left), Some(right)) = (items.get(0), items.get(1)) {
+                let left_value = execute(left.clone(), stack)?;
+                let right_value = execute(right.clone(), stack)?;
+                Ok(Box::new(Expr::Const(Const::Bool(left.eq(right)))))
+            } else {
+                Err("The list is empty".to_string())
+            }
+        }
+        _ => Err("Not a list".to_string())
+    }
+}
+
+fn generate_build_in_fun(build_in: BuildIn) {}
 
 fn parse_sane(input: &str) -> Result<Box<Expr>, String> {
     let parsed = SaneParser::parse(Rule::expr, input)
@@ -181,6 +215,7 @@ fn execute_sane(input: &str) -> Result<Box<Expr>, String> {
     let stack = &mut vec![
         ("head".to_string(), Box::new(Expr::BuildIn(BuildIn::Head))),
         ("tail".to_string(), Box::new(Expr::BuildIn(BuildIn::Tail))),
+        ("eq".to_string(), Box::new(Expr::BuildIn(BuildIn::Eq))),
     ];
     execute(expr, stack)
 }
@@ -197,25 +232,31 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
             if let Some(item) = stack.iter().rev().find(|item| { item.0 == ident }) {
                 execute(item.1.clone(), stack)  // TODO might be inefficient (optimize referencing)
             } else {
-                Err(format!("Ident `{:?}` not found", ident))
+                Err(format!("Ident {:?} not found: {:?}", ident, stack))
             }
         }
         Expr::Bind(Bind { arg, fun }) => {
             match *execute(fun.clone(), stack)? {
-                Expr::Fun(Fun { param, body }) => {
-                    stack.push((param.clone(), arg));
-                    let result = execute(body, stack);
+                Expr::Fun(Fun { param, body, env }) => {
+                    let mut env = env.clone();
+                    let env: &mut Stack = env.borrow_mut();
+                    env.push((param.clone(), arg));
+                    let result = execute(body.clone(), env);
                     stack.pop();
                     result
                 }
                 Expr::BuildIn(build_in) => {
                     match build_in {
                         BuildIn::Head => sane_head(arg),
-                        BuildIn::Tail => sane_tail(arg)
+                        BuildIn::Tail => sane_tail(arg),
+                        BuildIn::Eq => sane_eq(arg, stack)
                     }
                 }
-                _ => Err(format!("Expr `{:?}` is not a function", fun))
+                _ => Err(format!("Expr {:?} is not a function", fun))
             }
+        }
+        Expr::Fun(mut fun) => {
+            Ok(Box::new(Expr::Fun(Fun { env: stack.clone(), ..fun })))
         }
         _ => Ok(expr)
     }
@@ -252,7 +293,7 @@ mod tests {
     #[test]
     fn parse_fun() {
         let result = *parse_sane("fun a => a").unwrap();
-        assert_eq!(result, Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())) }));
+        assert_eq!(result, Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())), env: vec![] }));
     }
 
     #[test]
@@ -281,8 +322,10 @@ mod tests {
 
     #[test]
     fn test_execute_bind_2() {
-        let result = *execute_sane("let f = fun a => fun b => b in 1 -> 2 -> f").unwrap();
-        assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
+        // TODO Looks like arguments from upper scope don't appear in the stack
+        // The taken idents should be copied to the function environment
+        let result = *execute_sane("let f = fun a => fun b => a in 1 -> 2 -> f").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
     }
 
     #[test]
@@ -293,7 +336,7 @@ mod tests {
                 items: vec![
                     Box::new(Expr::Const(Const::Numeric(1.0))),
                     Box::new(Expr::Const(Const::String("two".to_string()))),
-                    Box::new(Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())) }))
+                    Box::new(Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())), env: vec![] }))
                 ]
             }
         ));
@@ -370,5 +413,42 @@ mod tests {
                 ]
             }
         ));
+    }
+
+    #[test]
+    fn test_execute_eq_0() {
+        let result = *execute_sane("[1; 1] -> eq").unwrap();
+        assert_eq!(result, Expr::Const(Const::Bool(true)));
+    }
+
+    #[test]
+    fn test_execute_eq_1() {
+        let result = *execute_sane("[fun a => b; fun a => b] -> eq").unwrap();
+        assert_eq!(result, Expr::Const(Const::Bool(true)));
+    }
+
+    #[test]
+    fn test_execute_eq_2() {
+        let result = *execute_sane("[fun a => b; fun a => c] -> eq").unwrap();
+        assert_eq!(result, Expr::Const(Const::Bool(false)));
+    }
+
+    #[test]
+    fn test_execute_eq_3() {
+        let result = *execute_sane("[[]; []] -> eq").unwrap();
+        assert_eq!(result, Expr::Const(Const::Bool(true)));
+    }
+
+    #[test]
+    fn test_execute_curry_0() {
+        let result = *execute_sane(
+            "let c = fun a => \
+                    fun b => \
+                      [a; b] -> eq \
+                  in\
+                    let curr = 1 -> c \
+                    in \
+                      2 -> curr").unwrap();
+        assert_eq!(result, Expr::Const(Const::Bool(false)));
     }
 }
