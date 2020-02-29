@@ -48,6 +48,7 @@ enum BuildIn {
     Head,
     Tail,
     Eq,
+    Inc,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -66,6 +67,70 @@ enum Expr {
     Fun(Fun),
     List(List),
     BuildIn(BuildIn),
+}
+
+impl ToSource for Expr {
+    fn to_source(&self) -> String {
+        match self {
+            Expr::LetIn(let_in) => let_in.to_source(),
+            Expr::Const(const_) => const_.to_source() ,
+            Expr::Ident(ident) => ident.clone(),
+            Expr::Bind(bind) => bind.to_source(),
+            Expr::List(list) => list.to_source(),
+            Expr::Fun(fun) => fun.to_source(),
+            _ => format!("{:?}", self)
+        }
+    }
+}
+
+impl ToSource for LetIn {
+    fn to_source(&self) -> String {
+        format!("let {} = {} in {}", self.var, self.value.to_source(), self.in_part.to_source())
+    }
+}
+
+impl ToSource for Fun {
+    fn to_source(&self) -> String {
+        format!("fun {} => {}", self.param, self.body.to_source())
+    }
+}
+
+impl ToSource for Const {
+    fn to_source(&self) -> String {
+        match self {
+            Const::String(string) => format!("\"{}\"", string),
+            Const::Numeric(f64) => format!("{:?}", f64),
+            Const::Bool(bool) => if *bool {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
+    }
+}
+
+impl ToSource for List {
+    fn to_source(&self) -> String {
+        let c = self.items.iter().map(|item| item.to_source()).collect::<Vec<String>>().join("; ");
+        format!("[{}]", c)
+    }
+}
+
+impl ToSource for Bind {
+    fn to_source(&self) -> String {
+        format!("{} -> {}", self.arg.to_source(), self.fun.to_source())
+    }
+}
+
+impl ToSource for BuildIn {
+    fn to_source(&self) -> String {
+        format!("{:?}", self).to_lowercase()
+    }
+}
+
+
+trait ToSource {
+    fn to_source(&self) -> String;
 }
 
 fn parse_const(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
@@ -171,13 +236,6 @@ fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
         }
     }
 }
-//
-// fn sane_eq_2(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
-//     // TODO
-//     // 1. Introduce boolean
-//     // 2. From this function return another function which returns true when its argument equal to this pair
-//     // (autocurrying)
-// }
 
 fn sane_eq(param: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
     match *param {
@@ -185,12 +243,22 @@ fn sane_eq(param: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
             if let (Some(left), Some(right)) = (items.get(0), items.get(1)) {
                 let left_value = execute(left.clone(), stack)?;
                 let right_value = execute(right.clone(), stack)?;
-                Ok(Box::new(Expr::Const(Const::Bool(left.eq(right)))))
+                Ok(Box::new(Expr::Const(Const::Bool(left_value.eq(&right_value)))))
             } else {
                 Err("The list is empty".to_string())
             }
         }
         _ => Err("Not a list".to_string())
+    }
+}
+
+fn sane_inc(param: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
+    let param = execute(param, stack)?;
+    match *param {
+        Expr::Const(Const::Numeric(num)) => {
+            Ok(Box::new(Expr::Const(Const::Numeric(num + 1.0))))
+        }
+        _ => Err(format!("Not a numeric. `{:?}`", param))
     }
 }
 
@@ -216,6 +284,7 @@ fn execute_sane(input: &str) -> Result<Box<Expr>, String> {
         ("head".to_string(), Box::new(Expr::BuildIn(BuildIn::Head))),
         ("tail".to_string(), Box::new(Expr::BuildIn(BuildIn::Tail))),
         ("eq".to_string(), Box::new(Expr::BuildIn(BuildIn::Eq))),
+        ("inc".to_string(), Box::new(Expr::BuildIn(BuildIn::Inc))),
     ];
     execute(expr, stack)
 }
@@ -249,11 +318,19 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
                     match build_in {
                         BuildIn::Head => sane_head(arg),
                         BuildIn::Tail => sane_tail(arg),
-                        BuildIn::Eq => sane_eq(arg, stack)
+                        BuildIn::Eq => sane_eq(arg, stack),
+                        BuildIn::Inc => sane_inc(arg, stack)
                     }
                 }
                 _ => Err(format!("Expr {:?} is not a function", fun))
             }
+        }
+        Expr::List(List { items }) => {
+            let mut result: Vec<Box<Expr>> = vec![];
+            for item in items.into_iter() {
+                result.push(execute(item, stack)?);
+            }
+            Ok(Box::new(Expr::List(List { items: result })))
         }
         Expr::Fun(mut fun) => {
             Ok(Box::new(Expr::Fun(Fun { env: stack.clone(), ..fun })))
@@ -330,45 +407,20 @@ mod tests {
 
     #[test]
     fn test_execute_array_0() {
-        let result = *execute_sane("[1; \"two\"; fun a => a]").unwrap();
-        assert_eq!(result, Expr::List(
-            List {
-                items: vec![
-                    Box::new(Expr::Const(Const::Numeric(1.0))),
-                    Box::new(Expr::Const(Const::String("two".to_string()))),
-                    Box::new(Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())), env: vec![] }))
-                ]
-            }
-        ));
+        let result = execute_sane("[1; \"two\"; fun a => a]").unwrap().to_source();
+        assert_eq!(result, r#"[1.0; "two"; fun a => a]"#);
     }
 
     #[test]
     fn test_execute_array_1() {
-        let result = *execute_sane("[1; [2; [3]]]").unwrap();
-        assert_eq!(
-            result,
-            Expr::List(
-                List {
-                    items: vec![
-                        Box::new(Expr::Const(Const::Numeric(1.0))),
-                        Box::new(Expr::List(
-                            List {
-                                items: vec![
-                                    Box::new(Expr::Const(Const::Numeric(2.0))),
-                                    Box::new(Expr::List(
-                                        List {
-                                            items: vec![
-                                                Box::new(Expr::Const(Const::Numeric(3.0)))
-                                            ]
-                                        }
-                                    ))
-                                ]
-                            }
-                        ))
-                    ]
-                }
-            )
-        );
+        let result = execute_sane("[1; [2; [3]]]").unwrap().to_source();
+        assert_eq!(result, "[1.0; [2.0; [3.0]]]");
+    }
+
+    #[test]
+    fn test_execute_array_2() {
+        let result = *execute_sane(r#"[1; "two"; fun a => a]"#).unwrap();
+        assert_eq!(result.to_source(), r#"[1.0; "two"; fun a => a]"#);
     }
 
     #[test]
@@ -440,15 +492,37 @@ mod tests {
     }
 
     #[test]
+    fn test_execute_eq_4() {
+        let result = *execute_sane(
+            r#"let a = fun b => b in
+               let c = fun d => d in
+                 [1 -> a; 1 -> c] -> eq"#).unwrap();
+        // // This works
+        // let result = *execute_sane(
+        //     r#"let a = fun b => b in
+        //        let c = fun d => d in
+        //          [1 -> c; 1 -> a] -> eq"#).unwrap();
+        assert_eq!(result, Expr::Const(Const::Bool(true)));
+    }
+
+    #[test]
     fn test_execute_curry_0() {
         let result = *execute_sane(
-            "let c = fun a => \
-                    fun b => \
-                      [a; b] -> eq \
-                  in\
-                    let curr = 1 -> c \
-                    in \
-                      2 -> curr").unwrap();
+            r#"let c = fun a =>
+                 fun b =>
+                   [a; b] -> eq
+               in
+                 let curr = 1 -> c
+                 in
+                   2 -> curr"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(false)));
+    }
+
+    #[test]
+    fn test_execute_inc_0() {
+        let result = *execute_sane(
+            r#"let a = 1 in
+                 a -> inc"#).unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
     }
 }
