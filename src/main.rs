@@ -285,23 +285,33 @@ fn execute_sane(input: &str) -> Result<Box<Expr>, String> {
         ("tail".to_string(), Box::new(Expr::BuildIn(BuildIn::Tail))),
         ("eq".to_string(), Box::new(Expr::BuildIn(BuildIn::Eq))),
         ("inc".to_string(), Box::new(Expr::BuildIn(BuildIn::Inc))),
+        ("true".to_string(), Box::new(Expr::Const(Const::Bool(true)))),
+        ("false".to_string(), Box::new(Expr::Const(Const::Bool(false)))),
     ];
     execute(expr, stack)
+}
+
+fn stack_to_string(stack: &Stack) -> String {
+    stack.iter().map(|item| {
+        format!("{} = {}", item.0, item.1.to_source())
+    }).collect::<Vec<String>>().join("\n")
 }
 
 fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
     match *expr {
         Expr::LetIn(let_in) => {
             stack.push((let_in.var.clone(), let_in.value));
+            println!(">>> LetIn Push: {}", let_in.var);
             let result = execute(let_in.in_part, stack);
-            stack.pop();
+            let popped = stack.pop().unwrap();
+            println!(">>> LetIn Pop {}", popped.0);
             result
         }
         Expr::Ident(ident) => {
             if let Some(item) = stack.iter().rev().find(|item| { item.0 == ident }) {
                 execute(item.1.clone(), stack)  // TODO might be inefficient (optimize referencing)
             } else {
-                Err(format!("Ident {:?} not found: {:?}", ident, stack))
+                Err(format!("Ident `{}` not found: {}", ident, stack_to_string(stack)))
             }
         }
         Expr::Bind(Bind { arg, fun }) => {
@@ -311,7 +321,6 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
                     let env: &mut Stack = env.borrow_mut();
                     env.push((param.clone(), arg));
                     let result = execute(body.clone(), env);
-                    stack.pop();
                     result
                 }
                 Expr::BuildIn(build_in) => {
@@ -496,12 +505,7 @@ mod tests {
         let result = *execute_sane(
             r#"let a = fun b => b in
                let c = fun d => d in
-                 [1 -> a; 1 -> c] -> eq"#).unwrap();
-        // // This works
-        // let result = *execute_sane(
-        //     r#"let a = fun b => b in
-        //        let c = fun d => d in
-        //          [1 -> c; 1 -> a] -> eq"#).unwrap();
+                 [1 -> c; 1 -> a] -> eq"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
@@ -518,11 +522,35 @@ mod tests {
         assert_eq!(result, Expr::Const(Const::Bool(false)));
     }
 
+    // #[test]
+    // fn test_map_0() {
+    //     let result = execute_sane(
+    //         r#"let map = fun fn =>
+    //              let map_ = fun list =>
+    //                match list -> count with
+    //                  0 => []
+    //                  _ =>
+    //                    let h = list -> head -> f
+    //                    //      list -> f(head)
+    //                    in
+    //                      let t = list -> tail
+    //                      in
+    //                        [h] -> (t -> map_) -> concat
+    //                        // concat([h], map_(t))
+    //                        // concat([h])(map_(t))
+    //              in map_
+    //            in
+    //              [1; 2; 3] -> (fun a => a -> inc) -> map
+    //         "#
+    //     ).unwrap().to_source();
+    //     assert_eq!(result, "[2; 3; 4]");
+    // }
+
     #[test]
     fn test_execute_inc_0() {
-        let result = *execute_sane(
+        let result = execute_sane(
             r#"let a = 1 in
-                 a -> inc"#).unwrap();
-        assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
+                 a -> inc"#).unwrap().to_source();
+        assert_eq!(result, "2.0");
     }
 }
