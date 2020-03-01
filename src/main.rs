@@ -56,6 +56,8 @@ enum BuildIn {
     Tail,
     Eq,
     Inc,
+    Count,
+    Concat
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -234,6 +236,35 @@ fn sane_head(param: Box<Expr>) -> Result<Box<Expr>, String> {
     }
 }
 
+fn sane_count(param: Box<Expr>) -> Result<Box<Expr>, String> {
+    match *param {
+        Expr::List(List { items }) => {
+            Ok(Box::new(Expr::Const(Const::Numeric(items.len() as f64))))
+        }
+        _ => Err("Not a list".to_string())
+    }
+}
+
+fn sane_concat(param: Box<Expr>) -> Result<Box<Expr>, String> {
+    match *param {
+        Expr::List(List { items }) => {
+            if let (Some(left), Some(right)) = (items.get(0), items.get(1)) {
+                let mut pair = (*left.clone(), *right.clone());
+                match pair {
+                    (Expr::List(List { items: mut left_items }), Expr::List(List { items: mut right_items})) => { ;
+                        left_items.append(&mut right_items);
+                        Ok(Box::new(Expr::List(List { items: left_items})))
+                    }
+                    _ => Err("It is not a list of lists".to_string())
+                }
+            } else {
+                Err("The list is empty".to_string())
+            }
+        }
+        _ => Err("Not a list".to_string())
+    }
+}
+
 fn sane_tail(param: Box<Expr>) -> Result<Box<Expr>, String> {
     match *param {
         Expr::List(List { items }) => {
@@ -308,6 +339,8 @@ fn execute_sane(input: &str) -> Result<Box<Expr>, String> {
         ("tail".to_string(), Box::new(Expr::BuildIn(BuildIn::Tail))),
         ("eq".to_string(), Box::new(Expr::BuildIn(BuildIn::Eq))),
         ("inc".to_string(), Box::new(Expr::BuildIn(BuildIn::Inc))),
+        ("count".to_string(), Box::new(Expr::BuildIn(BuildIn::Count))),
+        ("concat".to_string(), Box::new(Expr::BuildIn(BuildIn::Concat))),
         ("true".to_string(), Box::new(Expr::Const(Const::Bool(true)))),
         ("false".to_string(), Box::new(Expr::Const(Const::Bool(false)))),
     ];
@@ -355,7 +388,9 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
                         BuildIn::Head => sane_head(arg_result),
                         BuildIn::Tail => sane_tail(arg_result),
                         BuildIn::Eq => sane_eq(arg_result),
-                        BuildIn::Inc => sane_inc(arg_result)
+                        BuildIn::Inc => sane_inc(arg_result),
+                        BuildIn::Count => sane_count(arg_result),
+                        BuildIn::Concat => sane_concat(arg_result),
                     }
                 }
                 _ => Err(format!("Expr {:?} is not a function", fun))
@@ -557,29 +592,25 @@ mod tests {
         assert_eq!(result, Expr::Const(Const::Bool(false)));
     }
 
-    // #[test]
-    // fn test_map_0() {
-    //     let result = execute_sane(
-    //         r#"let map = fun fn =>
-    //              let map_ = fun list =>
-    //                if (list -> count) -> 0 -> eq then
-    //                  []
-    //                else
-    //                let h = list -> head -> f
-    //                //      list -> f(head)
-    //                in
-    //                  let t = list -> tail
-    //                  in
-    //                    [h] -> (t -> map_) -> concat
-    //                    // concat([h], map_(t))
-    //                    // concat([h])(map_(t))
-    //              in map_
-    //            in
-    //              [1; 2; 3] -> (fun a => a -> inc) -> map
-    //         "#
-    //     ).unwrap().to_source();
-    //     assert_eq!(result, "[2; 3; 4]");
-    // }
+    #[test]
+    fn test_map_0() {
+        let result = execute_sane(
+            r#"let map = fun fn =>
+                 let map_ = fun list =>
+                   if [list -> count; 0] -> eq then
+                     []
+                   else
+                   // TODO Looks like "list -> head -> fn" is parsed/bound in bad order
+                   let h = (list -> head) -> fn in
+                   let t = list -> tail in
+                   [[h]; t -> map_] -> concat
+                 in map_
+               in
+                 [1; 2; 3] -> (fun a => a -> inc) -> map
+            "#
+        ).unwrap().to_source();
+        assert_eq!(result, "[2.0; 3.0; 4.0]");
+    }
 
     #[test]
     fn test_recursive_0() {
@@ -614,5 +645,26 @@ mod tests {
                let b = 1 -> plus_one in
                if [b; 2] -> eq then 1 else 2"#).unwrap().to_source();
         assert_eq!(result, "1.0");
+    }
+
+    #[test]
+    fn test_count_0() {
+        let result = execute_sane(
+            r#"[] -> count"#).unwrap().to_source();
+        assert_eq!(result, "0.0");
+    }
+
+    #[test]
+    fn test_count_1() {
+        let result = execute_sane(
+            r#"[1] -> count"#).unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+
+    #[test]
+    fn test_concat_0() {
+        let result = execute_sane(
+            r#"[[1]; [2]] -> concat"#).unwrap().to_source();
+        assert_eq!(result, "[1.0; 2.0]");
     }
 }
