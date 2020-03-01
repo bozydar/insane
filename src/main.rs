@@ -44,6 +44,13 @@ struct List {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+struct IfThenElse {
+    pub cond: Box<Expr>,
+    pub then: Box<Expr>,
+    pub otherwise: Box<Expr>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 enum BuildIn {
     Head,
     Tail,
@@ -66,6 +73,7 @@ enum Expr {
     Bind(Bind),
     Fun(Fun),
     List(List),
+    IfThenElse(IfThenElse),
     BuildIn(BuildIn),
 }
 
@@ -73,10 +81,11 @@ impl ToSource for Expr {
     fn to_source(&self) -> String {
         match self {
             Expr::LetIn(let_in) => let_in.to_source(),
-            Expr::Const(const_) => const_.to_source() ,
+            Expr::Const(const_) => const_.to_source(),
             Expr::Ident(ident) => ident.clone(),
             Expr::Bind(bind) => bind.to_source(),
             Expr::List(list) => list.to_source(),
+            Expr::IfThenElse(if_then_else) => if_then_else.to_source(),
             Expr::Fun(fun) => fun.to_source(),
             _ => format!("{:?}", self)
         }
@@ -128,6 +137,11 @@ impl ToSource for BuildIn {
     }
 }
 
+impl ToSource for IfThenElse {
+    fn to_source(&self) -> String {
+        format!("if {} then {} else {}", self.cond.to_source(), self.then.to_source(), self.otherwise.to_source()).to_lowercase()
+    }
+}
 
 trait ToSource {
     fn to_source(&self) -> String;
@@ -185,6 +199,19 @@ fn parse_bind(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     })))
 }
 
+fn parse_if_then_else(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
+    let mut inner: Pairs<'_, Rule> = pair.into_inner();
+    let cond = inner.next().unwrap();
+    let then = inner.next().unwrap();
+    let otherwise = inner.next().unwrap();
+
+    Ok(Box::new(Expr::IfThenElse(IfThenElse {
+        cond: parse_pair(cond)?,
+        then: parse_pair(then)?,
+        otherwise: parse_pair(otherwise)?,
+    })))
+}
+
 fn parse_list(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let mut items: Vec<Box<Expr>> = vec![];
 
@@ -231,6 +258,7 @@ fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
         Rule::bind => parse_bind(pair),
         Rule::fun => parse_fun(pair),
         Rule::list => parse_list(pair),
+        Rule::if_then_else => parse_if_then_else(pair),
         _ => {
             Err(format!("Unknown rule `{:?}`", rule))
         }
@@ -261,8 +289,6 @@ fn sane_inc(param: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
         _ => Err(format!("Not a numeric. `{:?}`", param))
     }
 }
-
-fn generate_build_in_fun(build_in: BuildIn) {}
 
 fn parse_sane(input: &str) -> Result<Box<Expr>, String> {
     let parsed = SaneParser::parse(Rule::expr, input)
@@ -332,6 +358,14 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
                     }
                 }
                 _ => Err(format!("Expr {:?} is not a function", fun))
+            }
+        }
+        Expr::IfThenElse(IfThenElse { cond, then, otherwise }) => {
+            let result = execute(cond, stack)?;
+            if let Expr::Const(Const::Bool(true)) = *result {
+                execute(then, stack)
+            } else {
+                execute(otherwise, stack)
             }
         }
         Expr::List(List { items }) => {
@@ -552,5 +586,23 @@ mod tests {
             r#"let a = 1 in
                  a -> inc"#).unwrap().to_source();
         assert_eq!(result, "2.0");
+    }
+
+    #[test]
+    fn test_execute_if_0() {
+        let result = execute_sane(
+            r#"if true then 1 else 2"#).unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+
+    #[test]
+    fn test_execute_if_1() {
+        let result = execute_sane(
+            r#"let plus_one = fun a =>
+                 a -> inc
+               in
+               let b = 1 -> plus_one in
+               if [b; 2] -> eq then 1 else 2"#).unwrap().to_source();
+        assert_eq!(result, "1.0");
     }
 }

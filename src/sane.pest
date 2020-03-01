@@ -26,8 +26,9 @@ bind = { term ~ "->" ~ expr }
 list = { "[" ~ expr? ~ (";" ~ expr)* ~ "]" }
 structure = { "{" ~ field_value? ~ (";" ~ field_value)* ~ "}" }
 field_value = { ident ~ ":" ~ expr }
+if_then_else = { "if" ~ expr ~ "then" ~ expr ~ "else" ~ expr }
 
-expr = _{ let_in | fun | bind | term }
+expr = _{ let_in | fun | bind | if_then_else | term }
 term = _{  "(" ~ expr ~ ")" | structure | list | ident | constant }
 constant = { number | string_quoted }
 file = { SOI ~ expr ~ EOI }
