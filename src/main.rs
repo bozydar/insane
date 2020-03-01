@@ -265,13 +265,11 @@ fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     }
 }
 
-fn sane_eq(param: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
+fn sane_eq(param: Box<Expr>) -> Result<Box<Expr>, String> {
     match *param {
         Expr::List(List { items }) => {
             if let (Some(left), Some(right)) = (items.get(0), items.get(1)) {
-                let left_value = execute(left.clone(), stack)?;
-                let right_value = execute(right.clone(), stack)?;
-                Ok(Box::new(Expr::Const(Const::Bool(left_value.eq(&right_value)))))
+                Ok(Box::new(Expr::Const(Const::Bool(left.eq(&right)))))
             } else {
                 Err("The list is empty".to_string())
             }
@@ -280,8 +278,7 @@ fn sane_eq(param: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
     }
 }
 
-fn sane_inc(param: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
-    let param = execute(param, stack)?;
+fn sane_inc(param: Box<Expr>) -> Result<Box<Expr>, String> {
     match *param {
         Expr::Const(Const::Numeric(num)) => {
             Ok(Box::new(Expr::Const(Const::Numeric(num + 1.0))))
@@ -324,13 +321,15 @@ fn stack_to_string(stack: &Stack) -> String {
 }
 
 fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
+    // println!("Executing: {:?}", expr);
+    // println!("Stack: {}", stack_to_string(stack));
     match *expr {
         Expr::LetIn(let_in) => {
             stack.push((let_in.var.clone(), let_in.value));
-            println!(">>> LetIn Push: {}", let_in.var);
+            // println!(">>> LetIn Push: {}", let_in.var);
             let result = execute(let_in.in_part, stack);
             let popped = stack.pop().unwrap();
-            println!(">>> LetIn Pop {}", popped.0);
+            // println!(">>> LetIn Pop {}", popped.0);
             result
         }
         Expr::Ident(ident) => {
@@ -341,20 +340,22 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
             }
         }
         Expr::Bind(Bind { arg, fun }) => {
+            let arg_result = execute(arg, stack)?;
             match *execute(fun.clone(), stack)? {
                 Expr::Fun(Fun { param, body, env }) => {
                     let mut env = env.clone();
                     let env: &mut Stack = env.borrow_mut();
-                    env.push((param.clone(), arg));
+                    // println!(">>>>> Push {:?}", param);
+                    env.push((param.clone(), arg_result));
                     let result = execute(body.clone(), env);
                     result
                 }
                 Expr::BuildIn(build_in) => {
                     match build_in {
-                        BuildIn::Head => sane_head(arg),
-                        BuildIn::Tail => sane_tail(arg),
-                        BuildIn::Eq => sane_eq(arg, stack),
-                        BuildIn::Inc => sane_inc(arg, stack)
+                        BuildIn::Head => sane_head(arg_result),
+                        BuildIn::Tail => sane_tail(arg_result),
+                        BuildIn::Eq => sane_eq(arg_result),
+                        BuildIn::Inc => sane_inc(arg_result)
                     }
                 }
                 _ => Err(format!("Expr {:?} is not a function", fun))
@@ -561,17 +562,17 @@ mod tests {
     //     let result = execute_sane(
     //         r#"let map = fun fn =>
     //              let map_ = fun list =>
-    //                match list -> count with
-    //                  0 => []
-    //                  _ =>
-    //                    let h = list -> head -> f
-    //                    //      list -> f(head)
-    //                    in
-    //                      let t = list -> tail
-    //                      in
-    //                        [h] -> (t -> map_) -> concat
-    //                        // concat([h], map_(t))
-    //                        // concat([h])(map_(t))
+    //                if (list -> count) -> 0 -> eq then
+    //                  []
+    //                else
+    //                let h = list -> head -> f
+    //                //      list -> f(head)
+    //                in
+    //                  let t = list -> tail
+    //                  in
+    //                    [h] -> (t -> map_) -> concat
+    //                    // concat([h], map_(t))
+    //                    // concat([h])(map_(t))
     //              in map_
     //            in
     //              [1; 2; 3] -> (fun a => a -> inc) -> map
@@ -579,6 +580,15 @@ mod tests {
     //     ).unwrap().to_source();
     //     assert_eq!(result, "[2; 3; 4]");
     // }
+
+    #[test]
+    fn test_recursive_0() {
+        let result = execute_sane(
+            r#"let add_till_10 = fun a =>
+                 if [a; 10.0] -> eq then a else (a -> inc) -> add_till_10
+               in 0 -> add_till_10"#).unwrap().to_source();
+        assert_eq!(result, "10.0");
+    }
 
     #[test]
     fn test_execute_inc_0() {
