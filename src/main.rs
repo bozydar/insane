@@ -206,7 +206,18 @@ fn parse_fun(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     })))
 }
 
-fn parse_bind(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
+fn parse_bind_to_left(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
+    let mut inner: Pairs<'_, Rule> = pair.into_inner();
+    let fun = inner.next().unwrap();
+    let arg = inner.next().unwrap();
+
+    Ok(Box::new(Expr::Bind(Bind {
+        arg: parse_pair(arg)?,
+        fun: parse_pair(fun)?,
+    })))
+}
+
+fn parse_bind_to_right(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let mut inner: Pairs<'_, Rule> = pair.into_inner();
     let arg = inner.next().unwrap();
     let fun = inner.next().unwrap();
@@ -303,7 +314,8 @@ fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
         Rule::constant => parse_const(pair),
         Rule::let_in => parse_let_in(pair),
         Rule::ident => parse_ident(pair),
-        Rule::bind => parse_bind(pair),
+        Rule::bind_to_left => parse_bind_to_left(pair),
+        Rule::bind_to_right => parse_bind_to_right(pair),
         Rule::fun => parse_fun(pair),
         Rule::list => parse_list(pair),
         Rule::if_then_else => parse_if_then_else(pair),
@@ -456,8 +468,14 @@ mod tests {
     }
 
     #[test]
-    fn parse_bind() {
-        let result = *parse_sane("1 -> f").unwrap();
+    fn parse_bind_left() {
+        let result = *parse_sane("f < 1").unwrap();
+        assert_eq!(result, Expr::Bind(Bind { arg: Box::new(Expr::Const(Const::Numeric(1.0))), fun: Box::new(Expr::Ident("f".to_string())) }));
+    }
+
+    #[test]
+    fn parse_bind_right() {
+        let result = *parse_sane("1 > f").unwrap();
         assert_eq!(result, Expr::Bind(Bind { arg: Box::new(Expr::Const(Const::Numeric(1.0))), fun: Box::new(Expr::Ident("f".to_string())) }));
     }
 
@@ -481,25 +499,25 @@ mod tests {
 
     #[test]
     fn test_execute_bind_0() {
-        let result = *execute_sane("2 -> fun a => a").unwrap();
+        let result = *execute_sane("(fun a => a) < 2").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
     }
 
     #[test]
     fn test_execute_bind_1() {
-        let result = *execute_sane("let f = fun a => a in 2 -> f").unwrap();
+        let result = *execute_sane("let f = fun a => a in f < 2").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
     }
 
     #[test]
     fn test_execute_bind_2() {
-        let result = *execute_sane("let f = fun a => fun b => a in 1 -> 2 -> f").unwrap();
+        let result = *execute_sane("let f = fun a => fun b => a in 1 > 2 > f").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
     }
 
     #[test]
     fn test_execute_bind_3() {
-        let result = *execute_sane("let f = fun a => fun b => b in 1 -> 2 -> f").unwrap();
+        let result = *execute_sane("let f = fun a => fun b => b in 1 > 2 > f").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
     }
 
@@ -521,21 +539,15 @@ mod tests {
         assert_eq!(result.to_source(), r#"[1.0; "two"; fun a => a]"#);
     }
 
-    // #[test]
-    // fn test_execute_head_0() {
-    //     let result = *execute_sane("head").unwrap();
-    //     assert_eq!(result, Expr::BuildIn(BuildIn { name: "head", fun: _}));
-    // }
-
     #[test]
     fn test_execute_head_1() {
-        let result = *execute_sane("[1] -> head").unwrap();
+        let result = *execute_sane("[1] > head").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
     }
 
     #[test]
     fn test_execute_tail_0() {
-        let result = *execute_sane("[] -> tail").unwrap();
+        let result = *execute_sane("[] > tail").unwrap();
         assert_eq!(result, Expr::List(
             List {
                 items: vec![]
@@ -545,7 +557,7 @@ mod tests {
 
     #[test]
     fn test_execute_tail_1() {
-        let result = *execute_sane("[1] -> tail").unwrap();
+        let result = *execute_sane("[1] > tail").unwrap();
         assert_eq!(result, Expr::List(
             List {
                 items: vec![]
@@ -555,7 +567,7 @@ mod tests {
 
     #[test]
     fn test_execute_tail_2() {
-        let result = *execute_sane("[1;2] -> tail").unwrap();
+        let result = *execute_sane("[1;2] > tail").unwrap();
         assert_eq!(result, Expr::List(
             List {
                 items: vec![
@@ -567,25 +579,25 @@ mod tests {
 
     #[test]
     fn test_execute_eq_0() {
-        let result = *execute_sane("[1; 1] -> eq").unwrap();
+        let result = *execute_sane("[1; 1] > eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
     #[test]
     fn test_execute_eq_1() {
-        let result = *execute_sane("[fun a => b; fun a => b] -> eq").unwrap();
+        let result = *execute_sane("[fun a => b; fun a => b] > eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
     #[test]
     fn test_execute_eq_2() {
-        let result = *execute_sane("[fun a => b; fun a => c] -> eq").unwrap();
+        let result = *execute_sane("[fun a => b; fun a => c] > eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(false)));
     }
 
     #[test]
     fn test_execute_eq_3() {
-        let result = *execute_sane("[[]; []] -> eq").unwrap();
+        let result = *execute_sane("[[]; []] > eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
@@ -594,7 +606,7 @@ mod tests {
         let result = *execute_sane(
             r#"let a = fun b => b in
                let c = fun d => d in
-                 [1 -> c; 1 -> a] -> eq"#).unwrap();
+                 [1 > c; 1 > a] > eq"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
@@ -603,11 +615,11 @@ mod tests {
         let result = *execute_sane(
             r#"let c = fun a =>
                  fun b =>
-                   [a; b] -> eq
+                   [a; b] > eq
                in
-                 let curr = 1 -> c
+                 let curr = 1 > c
                  in
-                   2 -> curr"#).unwrap();
+                   2 > curr"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(false)));
     }
 
@@ -616,16 +628,15 @@ mod tests {
         let result = execute_sane(
             r#"let map = fun fn =>
                  let map_ = fun list =>
-                   if [list -> count; 0] -> eq then
+                   if [list > count; 0] > eq then
                      []
                    else
-                     // TODO Looks like "list -> head -> fn" is parsed/bound in bad order
-                     let h = (list -> head) -> fn in
-                     let t = list -> tail in
-                     [[h]; t -> map_] -> concat
+                     let h = fn < head < list in
+                     let t = list > tail in
+                     [[h]; t > map_] > concat
                  in map_
                in
-                 [1; 2; 3] -> (fun a => a -> inc) -> map
+                 [1; 2; 3] > (fun a => a > inc) > map
             "#
         ).unwrap().to_source();
         assert_eq!(result, "[2.0; 3.0; 4.0]");
@@ -635,8 +646,8 @@ mod tests {
     fn test_recursive_0() {
         let result = execute_sane(
             r#"let add_till_10 = fun a =>
-                 if [a; 10.0] -> eq then a else (a -> inc) -> add_till_10
-               in 0 -> add_till_10"#).unwrap().to_source();
+                 if [a; 10.0] > eq then a else (a > inc) > add_till_10
+               in 0 > add_till_10"#).unwrap().to_source();
         assert_eq!(result, "10.0");
     }
 
@@ -644,7 +655,7 @@ mod tests {
     fn test_execute_inc_0() {
         let result = execute_sane(
             r#"let a = 1 in
-                 a -> inc"#).unwrap().to_source();
+                 a > inc"#).unwrap().to_source();
         assert_eq!(result, "2.0");
     }
 
@@ -659,31 +670,31 @@ mod tests {
     fn test_execute_if_1() {
         let result = execute_sane(
             r#"let plus_one = fun a =>
-                 a -> inc
+                 a > inc
                in
-               let b = 1 -> plus_one in
-               if [b; 2] -> eq then 1 else 2"#).unwrap().to_source();
+               let b = 1 > plus_one in
+               if [b; 2] > eq then 1 else 2"#).unwrap().to_source();
         assert_eq!(result, "1.0");
     }
 
     #[test]
     fn test_count_0() {
         let result = execute_sane(
-            r#"[] -> count"#).unwrap().to_source();
+            r#"[] > count"#).unwrap().to_source();
         assert_eq!(result, "0.0");
     }
 
     #[test]
     fn test_count_1() {
         let result = execute_sane(
-            r#"[1] -> count"#).unwrap().to_source();
+            r#"[1] > count"#).unwrap().to_source();
         assert_eq!(result, "1.0");
     }
 
     #[test]
     fn test_concat_0() {
         let result = execute_sane(
-            r#"[[1]; [2]] -> concat"#).unwrap().to_source();
+            r#"[[1]; [2]] > concat"#).unwrap().to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 }

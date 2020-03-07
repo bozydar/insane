@@ -22,24 +22,14 @@ ident = @{ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )*  }
 
 let_in = { "let" ~ ident ~ "=" ~ expr ~ "in" ~ expr }
 fun = { "fun" ~ ident ~ "=>" ~ expr }
-bind = { term ~ "->" ~ expr }
+bind_to_left = { term ~ "<" ~ expr }
+bind_to_right = { term ~ ">" ~ expr }
 list = { "[" ~ expr? ~ (";" ~ expr)* ~ "]" }
 structure = { "{" ~ field_value? ~ (";" ~ field_value)* ~ "}" }
 field_value = { ident ~ ":" ~ expr }
 if_then_else = { "if" ~ expr ~ "then" ~ expr ~ "else" ~ expr }
 
-expr = _{ let_in | fun | bind | if_then_else | term }
+expr = _{ let_in | fun | bind_to_left | bind_to_right | if_then_else | term }
 term = _{  "(" ~ expr ~ ")" | structure | list | ident | constant }
 constant = { number | string_quoted }
 file = { SOI ~ expr ~ EOI }
-
-// let a = "   abc  " in
-// let b = [1; 2; fun a => 3] in
-// let c = { a: 1; b: {a: [1; 2; 3]}; c: fun a => b } in
-// let map = fun list =>
-//   fun f =>
-//     let h = list -> head in
-//     let t = list -> tail in
-//     (f -> tail -> map) -> (h -> f) -> join
-// in a -> b -> map
-//
