@@ -478,10 +478,14 @@ mod tests {
 
     #[test]
     fn test_execute_bind_2() {
-        // TODO Looks like arguments from upper scope don't appear in the stack
-        // The taken idents should be copied to the function environment
         let result = *execute_sane("let f = fun a => fun b => a in 1 -> 2 -> f").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
+    }
+
+    #[test]
+    fn test_execute_bind_3() {
+        let result = *execute_sane("let f = fun a => fun b => b in 1 -> 2 -> f").unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
     }
 
     #[test]
@@ -600,10 +604,10 @@ mod tests {
                    if [list -> count; 0] -> eq then
                      []
                    else
-                   // TODO Looks like "list -> head -> fn" is parsed/bound in bad order
-                   let h = (list -> head) -> fn in
-                   let t = list -> tail in
-                   [[h]; t -> map_] -> concat
+                     // TODO Looks like "list -> head -> fn" is parsed/bound in bad order
+                     let h = (list -> head) -> fn in
+                     let t = list -> tail in
+                     [[h]; t -> map_] -> concat
                  in map_
                in
                  [1; 2; 3] -> (fun a => a -> inc) -> map
