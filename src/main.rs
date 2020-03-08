@@ -741,7 +741,7 @@ mod tests {
     fn test_recursive_0() {
         let result = execute_sane(
             r#"let add_till_10 = fun a =>
-                 if a > 10.0 > eq then a else (a > inc) > add_till_10
+                 if a > 10.0 > eq then a else add_till_10 < inc < a
                in 0 > add_till_10"#).unwrap().to_source();
         assert_eq!(result, "10.0");
     }
