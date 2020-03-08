@@ -177,6 +177,11 @@ fn parse_const(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     }
 }
 
+fn parse_file(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
+    let pair = pair.into_inner().next().unwrap();
+    parse_pair(pair)
+}
+
 fn parse_let_in(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let mut inner: Pairs<'_, Rule> = pair.into_inner();
     let ident = inner.next().unwrap();
@@ -311,6 +316,7 @@ fn sane_tail(param: Box<Expr>) -> Result<Box<Expr>, String> {
 fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let rule = pair.as_rule();
     match rule {
+        Rule::file => parse_file(pair),
         Rule::constant => parse_const(pair),
         Rule::let_in => parse_let_in(pair),
         Rule::ident => parse_ident(pair),
@@ -348,7 +354,7 @@ fn sane_inc(param: Box<Expr>) -> Result<Box<Expr>, String> {
 }
 
 fn parse_sane(input: &str) -> Result<Box<Expr>, String> {
-    let parsed = SaneParser::parse(Rule::expr, input)
+    let parsed = SaneParser::parse(Rule::file, input)
         .expect("Can't parse")
         .next()
         .unwrap();
