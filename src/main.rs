@@ -13,6 +13,7 @@ use pest::iterators::{Pair, Pairs};
 use std::borrow::BorrowMut;
 use std::fmt::{Debug, Formatter};
 use core::fmt;
+use std::ops::{Add, Deref};
 
 fn main() {}
 
@@ -344,6 +345,21 @@ fn sane_eq(param: Box<Expr>) -> Result<Box<Expr>, String> {
     }
 }
 
+fn sane_add(param: Box<Expr>) -> Result<Box<Expr>, String> {
+    match *param {
+        Expr::List(List { items }) => {
+            let left  = *items.get(0).ok_or("Can't find the first argument")?.clone();
+            let right = *items.get(1).ok_or("Can't find the second argument")?.clone();
+            if let (Expr::Const(Const::Numeric(left)), Expr::Const(Const::Numeric(right))) = (left, right) {
+                Ok(Box::new(Expr::Const(Const::Numeric(left.add(right)))))
+            } else {
+                Err("The list doesn't match".to_string())
+            }
+        }
+        _ => Err("Not a list (sane_add)".to_string())
+    }
+}
+
 fn sane_inc(param: Box<Expr>) -> Result<Box<Expr>, String> {
     match *param {
         Expr::Const(Const::Numeric(num)) => {
@@ -351,6 +367,11 @@ fn sane_inc(param: Box<Expr>) -> Result<Box<Expr>, String> {
         }
         _ => Err(format!("Not a numeric. `{:?}`", param))
     }
+}
+
+fn sane_print(param: Box<Expr>) -> Result<Box<Expr>, String> {
+    println!("{:#?}", param);
+    Ok(param)
 }
 
 fn parse_sane(input: &str) -> Result<Box<Expr>, String> {
@@ -376,6 +397,8 @@ fn execute_sane(input: &str) -> Result<Box<Expr>, String> {
         create_build_in("inc".to_string(), sane_inc),
         create_build_in("count".to_string(), sane_count),
         create_build_in("concat".to_string(), sane_concat),
+        create_build_in("add".to_string(), sane_add),
+        create_build_in("print".to_string(), sane_print),
         ("true".to_string(), Box::new(Expr::Const(Const::Bool(true)))),
         ("false".to_string(), Box::new(Expr::Const(Const::Bool(false)))),
     ];
@@ -617,6 +640,24 @@ mod tests {
     }
 
     #[test]
+    fn test_execute_eq_5() {
+        let result = *execute_sane(
+            r#"let eqa = fun left =>
+                  let eqa_ = fun right =>
+                    [left; right] > eq
+                  in eqa_
+               in 1 > 1 > eqa "#).unwrap();
+        assert_eq!(result, Expr::Const(Const::Bool(true)));
+    }
+
+    #[test]
+    fn test_execute_add_0() {
+        let result = *execute_sane(
+            r#"[1; 2] > add"#).unwrap();
+        assert_eq!(result, Expr::Const(Const::Numeric(3.0)));
+    }
+
+    #[test]
     fn test_execute_curry_0() {
         let result = *execute_sane(
             r#"let c = fun a =>
@@ -646,6 +687,28 @@ mod tests {
             "#
         ).unwrap().to_source();
         assert_eq!(result, "[2.0; 3.0; 4.0]");
+    }
+
+    #[test]
+    fn test_reduce_0() {
+        let result = execute_sane(
+            r#"let reduce = fun fn =>
+                 let reduce_0 = fun acc => fun list =>
+                     if [count < print < list; 0] > eq then
+                       acc
+                     else
+                       let h = list > head in
+                       let t = list > tail in
+                       let new_acc = h > acc > fn in
+                       t > new_acc > reduce_0
+                 in reduce_0
+               in
+                 let sum = fun acc => fun item => [acc; item] > add
+                 in
+                   [1; 2; 3] > 0 > sum > reduce
+            "#
+        ).unwrap().to_source();
+        assert_eq!(result, "6.0");
     }
 
     #[test]
