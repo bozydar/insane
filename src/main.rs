@@ -348,7 +348,7 @@ fn sane_eq(param: Box<Expr>) -> Result<Box<Expr>, String> {
 fn sane_add(param: Box<Expr>) -> Result<Box<Expr>, String> {
     match *param {
         Expr::List(List { items }) => {
-            let left  = *items.get(0).ok_or("Can't find the first argument")?.clone();
+            let left = *items.get(0).ok_or("Can't find the first argument")?.clone();
             let right = *items.get(1).ok_or("Can't find the second argument")?.clone();
             if let (Expr::Const(Const::Numeric(left)), Expr::Const(Const::Numeric(right))) = (left, right) {
                 Ok(Box::new(Expr::Const(Const::Numeric(left.add(right)))))
@@ -391,22 +391,48 @@ type Stack = Vec<(String, Box<Expr>)>;
 fn execute_sane(input: &str) -> Result<Box<Expr>, String> {
     let expr = parse_sane(input)?;
     let stack = &mut vec![
-        create_build_in("head".to_string(), sane_head),
-        create_build_in("tail".to_string(), sane_tail),
-        create_build_in("eq".to_string(), sane_eq),
-        create_build_in("inc".to_string(), sane_inc),
-        create_build_in("count".to_string(), sane_count),
-        create_build_in("concat".to_string(), sane_concat),
-        create_build_in("add".to_string(), sane_add),
-        create_build_in("print".to_string(), sane_print),
+        create_build_in("head".to_string(), sane_head, 1),
+        create_build_in("tail".to_string(), sane_tail, 1),
+        create_build_in("eq".to_string(), sane_eq, 2),
+        create_build_in("inc".to_string(), sane_inc, 1),
+        create_build_in("count".to_string(), sane_count, 1),
+        create_build_in("concat".to_string(), sane_concat, 2),
+        create_build_in("add".to_string(), sane_add, 2),
+        create_build_in("print".to_string(), sane_print, 1),
         ("true".to_string(), Box::new(Expr::Const(Const::Bool(true)))),
         ("false".to_string(), Box::new(Expr::Const(Const::Bool(false)))),
     ];
+    println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
     execute(expr, stack)
 }
 
-fn create_build_in(name: String, fun: BuildInFun) -> (String, Box<Expr>) {
-    (name.clone(), Box::new(Expr::BuildIn(BuildIn { fun, name: name.clone() })))
+fn create_build_in(name: String, fun: BuildInFun, nry: i32) -> (String, Box<Expr>) {
+    fn build_arg(n: i32) -> Box<Expr> {
+        let mut items = vec![];
+        for i in 0..n {
+            items.push(Box::new(Expr::Ident(format!("$param_{}", i))))
+        }
+        Box::new(Expr::List(List { items }))
+    };
+
+    fn create_build_in_(name: String, fun: BuildInFun, nry: i32, n: i32) -> Box<Expr> {
+        if n == 0 {
+            // TODO all build in should work with List{} as an argument
+            let arg = build_arg(nry);
+            let fun = Box::new(Expr::BuildIn(BuildIn { fun, name: name.clone() }));
+            Box::new(Expr::Bind(Bind { arg, fun }))
+        } else {
+            let param = format!("$param_{}", n - 1);
+            let body = create_build_in_(name, fun, nry, n - 1);
+            Box::new(Expr::Fun(Fun { param, body, env: vec![] }))
+        }
+    };
+    if nry > 1 {
+        (name.to_string(), create_build_in_(name.to_string(), fun, nry, nry))
+    } else {
+        (name.to_string(), Box::new(Expr::BuildIn(BuildIn { fun, name: name.clone() })))
+    }
+
 }
 
 fn stack_to_string(stack: &Stack) -> String {
@@ -608,25 +634,25 @@ mod tests {
 
     #[test]
     fn test_execute_eq_0() {
-        let result = *execute_sane("[1; 1] > eq").unwrap();
+        let result = *execute_sane("1 > 1 > eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
     #[test]
     fn test_execute_eq_1() {
-        let result = *execute_sane("[fun a => b; fun a => b] > eq").unwrap();
+        let result = *execute_sane("(fun a => b) > (fun a => b) > eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
     #[test]
     fn test_execute_eq_2() {
-        let result = *execute_sane("[fun a => b; fun a => c] > eq").unwrap();
+        let result = *execute_sane("(fun a => b) > (fun a => c) > eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(false)));
     }
 
     #[test]
     fn test_execute_eq_3() {
-        let result = *execute_sane("[[]; []] > eq").unwrap();
+        let result = *execute_sane("[] > [] > eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
@@ -635,7 +661,7 @@ mod tests {
         let result = *execute_sane(
             r#"let a = fun b => b in
                let c = fun d => d in
-                 [1 > c; 1 > a] > eq"#).unwrap();
+                 (1 > c) > (1 > a) > eq"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
@@ -644,7 +670,7 @@ mod tests {
         let result = *execute_sane(
             r#"let eqa = fun left =>
                   let eqa_ = fun right =>
-                    [left; right] > eq
+                    left > right > eq
                   in eqa_
                in 1 > 1 > eqa "#).unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
@@ -653,7 +679,7 @@ mod tests {
     #[test]
     fn test_execute_add_0() {
         let result = *execute_sane(
-            r#"[1; 2] > add"#).unwrap();
+            r#"1 > 2 > add"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(3.0)));
     }
 
@@ -662,7 +688,7 @@ mod tests {
         let result = *execute_sane(
             r#"let c = fun a =>
                  fun b =>
-                   [a; b] > eq
+                   a > b > eq
                in
                  let curr = 1 > c
                  in
@@ -675,12 +701,12 @@ mod tests {
         let result = execute_sane(
             r#"let map = fun fn =>
                  let map_ = fun list =>
-                   if [list > count; 0] > eq then
+                   if (list > count) > 0 > eq then
                      []
                    else
                      let h = fn < head < list in
                      let t = list > tail in
-                     [[h]; t > map_] > concat
+                     [h] > (t > map_) > concat
                  in map_
                in
                  [1; 2; 3] > (fun a => a > inc) > map
@@ -694,7 +720,7 @@ mod tests {
         let result = execute_sane(
             r#"let reduce = fun fn =>
                  let reduce_0 = fun acc => fun list =>
-                     if [count < print < list; 0] > eq then
+                     if (count < print < list) > 0 > eq then
                        acc
                      else
                        let h = list > head in
@@ -703,7 +729,7 @@ mod tests {
                        t > new_acc > reduce_0
                  in reduce_0
                in
-                 let sum = fun acc => fun item => [acc; item] > add
+                 let sum = fun acc => fun item => acc > item > add
                  in
                    [1; 2; 3] > 0 > sum > reduce
             "#
@@ -715,7 +741,7 @@ mod tests {
     fn test_recursive_0() {
         let result = execute_sane(
             r#"let add_till_10 = fun a =>
-                 if [a; 10.0] > eq then a else (a > inc) > add_till_10
+                 if a > 10.0 > eq then a else (a > inc) > add_till_10
                in 0 > add_till_10"#).unwrap().to_source();
         assert_eq!(result, "10.0");
     }
@@ -742,7 +768,7 @@ mod tests {
                  a > inc
                in
                let b = 1 > plus_one in
-               if [b; 2] > eq then 1 else 2"#).unwrap().to_source();
+               if b > 2 > eq then 1 else 2"#).unwrap().to_source();
         assert_eq!(result, "1.0");
     }
 
@@ -763,7 +789,7 @@ mod tests {
     #[test]
     fn test_concat_0() {
         let result = execute_sane(
-            r#"[[1]; [2]] > concat"#).unwrap().to_source();
+            r#"[1] > [2] > concat"#).unwrap().to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 }
