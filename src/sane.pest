@@ -21,7 +21,8 @@ char = _{
 ident = @{ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )*  }
 
 let_in = { "let" ~ ident ~ "=" ~ expr ~ "in" ~ expr }
-fun = { "fun" ~ ident ~ "=>" ~ expr }
+fun = { "fun" ~ args ~ "=>" ~ expr }
+args = { ident+ }
 bind_to_left = { term ~ "<" ~ expr }
 bind_to_right = { term ~ ">" ~ expr }
 list = { "[" ~ expr? ~ (";" ~ expr)* ~ "]" }

@@ -1,7 +1,7 @@
 #### TODO ####
 
 * Generate embedded functions for n-ary built-ins - DONE
-* Autogenerate curryable for multiparameter functions
+* Autogenerate curryable for multiparameter functions - DONE
 * Allow for calling functions declared in the same module
 * Clone only when needed
 * Add line information to Err

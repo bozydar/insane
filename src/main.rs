@@ -146,7 +146,7 @@ impl ToSource for List {
 
 impl ToSource for Bind {
     fn to_source(&self) -> String {
-        format!("{} -> {}", self.arg.to_source(), self.fun.to_source())
+        format!("{} > {}", self.arg.to_source(), self.fun.to_source())
     }
 }
 
@@ -200,16 +200,24 @@ fn parse_ident(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     Ok(Box::new(Expr::Ident(pair.as_str().to_string())))
 }
 
-fn parse_fun(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
-    let mut inner: Pairs<'_, Rule> = pair.into_inner();
-    let ident = inner.next().unwrap();
+fn parse_fun(pair: Pair<Rule>) -> Result<Box<Expr>, String> {
+    let mut inner: Pairs<Rule> = pair.into_inner();
+    let params = &mut inner.next().unwrap().into_inner().clone();
     let body = inner.next().unwrap();
 
-    Ok(Box::new(Expr::Fun(Fun {
-        param: ident.as_str().to_string(),
-        body: parse_pair(body)?,
-        env: vec![],
-    })))
+    fn build_inner_functions(params: &mut Pairs<Rule>, body: Pair<Rule>) -> Result<Box<Expr>, String> {
+        if let Some(param) = params.next() {
+            Ok(Box::new(Expr::Fun(Fun {
+                param: param.as_str().to_string(),
+                body: build_inner_functions(params, body)?,
+                env: vec![]
+            })))
+        } else {
+            parse_pair(body)
+        }
+    }
+
+    Ok(build_inner_functions(params, body)?)
 }
 
 fn parse_bind_to_left(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
@@ -432,7 +440,6 @@ fn create_build_in(name: String, fun: BuildInFun, nry: i32) -> (String, Box<Expr
     } else {
         (name.to_string(), Box::new(Expr::BuildIn(BuildIn { fun, name: name.clone() })))
     }
-
 }
 
 fn stack_to_string(stack: &Stack) -> String {
@@ -791,5 +798,38 @@ mod tests {
         let result = execute_sane(
             r#"[1] > [2] > concat"#).unwrap().to_source();
         assert_eq!(result, "[1.0; 2.0]");
+    }
+
+    #[test]
+    fn test_auto_curr_0() {
+        let result = parse_sane(
+            r#"fun a b c => a"#).unwrap().to_source();
+        assert_eq!(result, "fun a => fun b => fun c => a");
+    }
+
+    #[test]
+    fn test_auto_curr_1() {
+        let result = execute_sane(
+            r#"let f = fun a b => a > b > add in
+               let my_inc = 1 > f in
+               2 > my_inc"#).unwrap().to_source();
+        assert_eq!(result, "3.0");
+    }
+
+    #[test]
+    fn test_auto_curr_2() {
+        let result = execute_sane(
+            r#"let f = add in
+               let my_inc = 1 > f in
+               2 > my_inc"#).unwrap().to_source();
+        assert_eq!(result, "3.0");
+    }
+
+    #[test]
+    fn test_auto_curr_3() {
+        let result = execute_sane(
+            r#"let my_inc = 1 > add in
+               2 > my_inc"#).unwrap().to_source();
+        assert_eq!(result, "3.0");
     }
 }
