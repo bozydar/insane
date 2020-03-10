@@ -20,7 +20,8 @@ char = _{
 
 ident = @{ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )*  }
 
-let_in = { "let" ~ ident ~ "=" ~ expr ~ "in" ~ expr }
+let_in = { "let" ~ ident_expr ~ ("and" ~ "let" ~ ident_expr)*  ~ "in" ~ expr }
+ident_expr = { ident ~ "=" ~ expr }
 fun = { "fun" ~ args ~ "=>" ~ expr }
 args = { ident+ }
 bind_to_left = { term ~ "<" ~ expr }
@@ -33,4 +34,4 @@ if_then_else = { "if" ~ expr ~ "then" ~ expr ~ "else" ~ expr }
 expr = _{ let_in | fun | bind_to_left | bind_to_right | if_then_else | term }
 term = _{  "(" ~ expr ~ ")" | structure | list | ident | constant }
 constant = { number | string_quoted }
-file = { SOI ~ expr ~ EOI }
+file = { SOI ~ expr* ~ EOI }

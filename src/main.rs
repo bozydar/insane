@@ -2,10 +2,6 @@ extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
-#[macro_use]
-extern crate lazy_static;
-
-
 use std::collections::HashMap;
 
 use pest::Parser;
@@ -23,8 +19,7 @@ pub struct SaneParser;
 
 #[derive(Debug, PartialEq, Clone)]
 struct LetIn {
-    pub var: String,
-    pub value: Box<Expr>,
+    pub lets: Vec<(String, Box<Expr>)>,
     pub in_part: Box<Expr>,
 }
 
@@ -113,7 +108,10 @@ impl ToSource for Expr {
 
 impl ToSource for LetIn {
     fn to_source(&self) -> String {
-        format!("let {} = {} in {}", self.var, self.value.to_source(), self.in_part.to_source())
+        let lets = self.lets.iter().map(|item| {
+            format!("let {} = {}", item.0, item.1.to_source())
+        }).collect::<Vec<String>>().join( " and ");
+        format!("{} in {}", lets, self.in_part.to_source())
     }
 }
 
@@ -185,14 +183,21 @@ fn parse_file(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
 
 fn parse_let_in(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     let mut inner: Pairs<'_, Rule> = pair.into_inner();
-    let ident = inner.next().unwrap();
-    let value = inner.next().unwrap();
-    let in_part = inner.next().unwrap();
+    let mut lets: Vec<(String, Box<Expr>)> = vec![];
 
+    let mut pair = inner.next().unwrap();
+    while Rule::ident_expr == pair.as_rule() {
+        let mut ident_expr_inner = pair.into_inner();
+        let ident = ident_expr_inner.next().unwrap().as_str().to_string();
+        let value = ident_expr_inner.next().unwrap();
+        lets.push((ident, parse_pair(value)?));
+        pair = inner.next().unwrap();
+    }
+
+    let in_part = parse_pair(pair)?;
     Ok(Box::new(Expr::LetIn(LetIn {
-        var: ident.as_str().to_string(),
-        value: parse_pair(value)?,
-        in_part: parse_pair(in_part)?,
+        lets,
+        in_part,
     })))
 }
 
@@ -210,7 +215,7 @@ fn parse_fun(pair: Pair<Rule>) -> Result<Box<Expr>, String> {
             Ok(Box::new(Expr::Fun(Fun {
                 param: param.as_str().to_string(),
                 body: build_inner_functions(params, body)?,
-                env: vec![]
+                env: vec![],
             })))
         } else {
             parse_pair(body)
@@ -293,7 +298,6 @@ fn sane_concat(param: Box<Expr>) -> Result<Box<Expr>, String> {
                 let mut pair = (*left.clone(), *right.clone());
                 match pair {
                     (Expr::List(List { items: mut left_items }), Expr::List(List { items: mut right_items })) => {
-                        ;
                         left_items.append(&mut right_items);
                         Ok(Box::new(Expr::List(List { items: left_items })))
                     }
@@ -453,10 +457,16 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
     // println!("Stack: {}", stack_to_string(stack));
     match *expr {
         Expr::LetIn(let_in) => {
-            stack.push((let_in.var.clone(), let_in.value));
+            let mut pushed = 0;
+            for ident_expr in let_in.lets.iter() {
+                stack.push(ident_expr.clone());
+                pushed += 1;
+            }
             // println!(">>> LetIn Push: {}", let_in.var);
             let result = execute(let_in.in_part, stack);
-            let popped = stack.pop().unwrap();
+            for _ in 0..pushed {
+                stack.pop().unwrap();
+            }
             // println!(">>> LetIn Pop {}", popped.0);
             result
         }
@@ -524,9 +534,15 @@ mod tests {
     }
 
     #[test]
-    fn parse_let_in() {
-        let result = *parse_sane("let a = 1 in a").unwrap();
-        assert_eq!(result, Expr::LetIn(LetIn { var: "a".to_string(), value: Box::new(Expr::Const(Const::Numeric(1.0))), in_part: Box::new(Expr::Ident("a".to_string())) }));
+    fn parse_let_in_0() {
+        let result = parse_sane("let a = 1 in a").unwrap().to_source();
+        assert_eq!(result, "let a = 1.0 in a");
+    }
+
+    #[test]
+    fn parse_let_in_1() {
+        let result = parse_sane("let a = 1 and let b = 2 in [a; b]").unwrap().to_source();
+        assert_eq!(result, "let a = 1.0 and let b = 2.0 in [a; b]");
     }
 
     #[test]
@@ -750,6 +766,17 @@ mod tests {
             r#"let add_till_10 = fun a =>
                  if a > 10.0 > eq then a else add_till_10 < inc < a
                in 0 > add_till_10"#).unwrap().to_source();
+        assert_eq!(result, "10.0");
+    }
+
+    #[test]
+    fn test_recursive_1() {
+        let result = execute_sane(
+            r#"let flip = fun a =>
+                 if a > 10.0 > eq then a else flop < inc < a
+               and let flop = fun b =>
+                 b > flip
+               in 0 > flip"#).unwrap().to_source();
         assert_eq!(result, "10.0");
     }
 

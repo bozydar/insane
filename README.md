@@ -2,7 +2,18 @@
 
 * Generate embedded functions for n-ary built-ins - DONE
 * Autogenerate curryable for multiparameter functions - DONE
-* Allow for calling functions declared in the same module
+* Allow for calling functions declared in the let/and - DONE
+  ```
+  let flip = fun a => 
+    flop < a > -1 > add 
+  and
+  let flop = fun a => 
+    if a > 0 > neq 
+    then flip < print < a 
+    else a
+  in 
+    10 > flip 
+  ```
 * Clone only when needed
 * Add line information to Err
 * REPL
