@@ -25,13 +25,13 @@ struct LetIn {
 
 #[derive(Debug, PartialEq, Clone)]
 struct Bind {
-    pub arg: Box<Expr>,
+    pub args: Vec<Box<Expr>>,
     pub fun: Box<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 struct Fun {
-    pub param: String,
+    pub params: Vec<String>,
     pub body: Box<Expr>,
     pub env: Stack,
 }
@@ -48,12 +48,13 @@ struct IfThenElse {
     pub otherwise: Box<Expr>,
 }
 
-type BuildInFun = fn(param: Box<Expr>) -> Result<Box<Expr>, String>;
+type BuildInFun = fn(Vec<Box<Expr>>) -> Result<Box<Expr>, String>;
 
 #[derive(Clone)]
 struct BuildIn {
     pub fun: BuildInFun,
     pub name: String,
+    pub arity: usize,
 }
 
 impl Debug for BuildIn {
@@ -110,14 +111,14 @@ impl ToSource for LetIn {
     fn to_source(&self) -> String {
         let lets = self.lets.iter().map(|item| {
             format!("let {} = {}", item.0, item.1.to_source())
-        }).collect::<Vec<String>>().join( " and ");
+        }).collect::<Vec<String>>().join(" and ");
         format!("{} in {}", lets, self.in_part.to_source())
     }
 }
 
 impl ToSource for Fun {
     fn to_source(&self) -> String {
-        format!("fun {} => {}", self.param, self.body.to_source())
+        format!("fun {} => {}", self.params.join(" "), self.body.to_source())
     }
 }
 
@@ -144,7 +145,10 @@ impl ToSource for List {
 
 impl ToSource for Bind {
     fn to_source(&self) -> String {
-        format!("{} > {}", self.arg.to_source(), self.fun.to_source())
+        format!("app {} to {}", self.args.iter()
+            .map(|arg| arg.to_source())
+            .collect::<Vec<String>>()
+            .join(", "), self.fun.to_source())
     }
 }
 
@@ -207,44 +211,28 @@ fn parse_ident(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
 
 fn parse_fun(pair: Pair<Rule>) -> Result<Box<Expr>, String> {
     let mut inner: Pairs<Rule> = pair.into_inner();
-    let params = &mut inner.next().unwrap().into_inner().clone();
+    let params = inner.next().unwrap().into_inner()
+        .map(|item| item.as_str().to_string())
+        .collect::<Vec<String>>();
     let body = inner.next().unwrap();
 
-    fn build_inner_functions(params: &mut Pairs<Rule>, body: Pair<Rule>) -> Result<Box<Expr>, String> {
-        if let Some(param) = params.next() {
-            Ok(Box::new(Expr::Fun(Fun {
-                param: param.as_str().to_string(),
-                body: build_inner_functions(params, body)?,
-                env: vec![],
-            })))
-        } else {
-            parse_pair(body)
-        }
+    Ok(Box::new(Expr::Fun(Fun {
+        params,
+        body: parse_pair(body)?,
+        env: vec![],
+    })))
+}
+
+fn parse_bind(pair: Pair<Rule>) -> Result<Box<Expr>, String> {
+    let mut inner: Pairs<Rule> = pair.into_inner();
+    let mut args = vec![];
+    while let Some(next_pair) = inner.next() {
+        args.push(parse_pair(next_pair)?);
     }
 
-    Ok(build_inner_functions(params, body)?)
-}
+    let fun = args.pop().ok_or("There is no function")?;
 
-fn parse_bind_to_left(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
-    let mut inner: Pairs<'_, Rule> = pair.into_inner();
-    let fun = inner.next().unwrap();
-    let arg = inner.next().unwrap();
-
-    Ok(Box::new(Expr::Bind(Bind {
-        arg: parse_pair(arg)?,
-        fun: parse_pair(fun)?,
-    })))
-}
-
-fn parse_bind_to_right(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
-    let mut inner: Pairs<'_, Rule> = pair.into_inner();
-    let arg = inner.next().unwrap();
-    let fun = inner.next().unwrap();
-
-    Ok(Box::new(Expr::Bind(Bind {
-        arg: parse_pair(arg)?,
-        fun: parse_pair(fun)?,
-    })))
+    Ok(Box::new(Expr::Bind(Bind { args, fun })))
 }
 
 fn parse_if_then_else(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
@@ -269,8 +257,9 @@ fn parse_list(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     Ok(Box::new(Expr::List(List { items })))
 }
 
-fn sane_head(param: Box<Expr>) -> Result<Box<Expr>, String> {
-    match *param {
+fn sane_head(params: Vec<Box<Expr>>) -> Result<Box<Expr>, String> {
+    let param = params.first().ok_or("parameter error")?.deref();
+    match param {
         Expr::List(List { items }) => {
             if let Some(item) = items.first() {
                 Ok(item.clone())
@@ -282,7 +271,8 @@ fn sane_head(param: Box<Expr>) -> Result<Box<Expr>, String> {
     }
 }
 
-fn sane_count(param: Box<Expr>) -> Result<Box<Expr>, String> {
+fn sane_count(params: Vec<Box<Expr>>) -> Result<Box<Expr>, String> {
+    let param = params.get(0).ok_or("No arguments")?.clone();
     match *param {
         Expr::List(List { items }) => {
             Ok(Box::new(Expr::Const(Const::Numeric(items.len() as f64))))
@@ -291,28 +281,24 @@ fn sane_count(param: Box<Expr>) -> Result<Box<Expr>, String> {
     }
 }
 
-fn sane_concat(param: Box<Expr>) -> Result<Box<Expr>, String> {
-    match *param {
-        Expr::List(List { items }) => {
-            if let (Some(left), Some(right)) = (items.get(0), items.get(1)) {
-                let mut pair = (*left.clone(), *right.clone());
-                match pair {
-                    (Expr::List(List { items: mut left_items }), Expr::List(List { items: mut right_items })) => {
-                        left_items.append(&mut right_items);
-                        Ok(Box::new(Expr::List(List { items: left_items })))
-                    }
-                    _ => Err("It is not a list of lists".to_string())
-                }
-            } else {
-                Err("The list is empty".to_string())
+fn sane_concat(params: Vec<Box<Expr>>) -> Result<Box<Expr>, String> {
+    if let (Some(left), Some(right)) = (params.get(0), params.get(1)) {
+        let mut pair = (*left.clone(), *right.clone());
+        match pair {
+            (Expr::List(List { items: mut left_items }), Expr::List(List { items: mut right_items })) => {
+                left_items.append(&mut right_items);
+                Ok(Box::new(Expr::List(List { items: left_items })))
             }
+            _ => Err("It is not a list of lists".to_string())
         }
-        _ => Err("Not a list".to_string())
+    } else {
+        Err("The list is empty".to_string())
     }
 }
 
-fn sane_tail(param: Box<Expr>) -> Result<Box<Expr>, String> {
-    match *param {
+fn sane_tail(params: Vec<Box<Expr>>) -> Result<Box<Expr>, String> {
+    let param = params.first().ok_or("parameter error")?.deref();
+    match param {
         Expr::List(List { items }) => {
             let new_items =
                 if items.is_empty() {
@@ -333,8 +319,7 @@ fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
         Rule::constant => parse_const(pair),
         Rule::let_in => parse_let_in(pair),
         Rule::ident => parse_ident(pair),
-        Rule::bind_to_left => parse_bind_to_left(pair),
-        Rule::bind_to_right => parse_bind_to_right(pair),
+        Rule::bind => parse_bind(pair),
         Rule::fun => parse_fun(pair),
         Rule::list => parse_list(pair),
         Rule::if_then_else => parse_if_then_else(pair),
@@ -344,36 +329,27 @@ fn parse_pair(pair: Pair<'_, Rule>) -> Result<Box<Expr>, String> {
     }
 }
 
-fn sane_eq(param: Box<Expr>) -> Result<Box<Expr>, String> {
-    match *param {
-        Expr::List(List { items }) => {
-            if let (Some(left), Some(right)) = (items.get(0), items.get(1)) {
-                Ok(Box::new(Expr::Const(Const::Bool(left.eq(&right)))))
-            } else {
-                Err("The list is empty".to_string())
-            }
-        }
-        _ => Err("Not a list".to_string())
+fn sane_eq(params: Vec<Box<Expr>>) -> Result<Box<Expr>, String> {
+    if let (Some(left), Some(right)) = (params.get(0), params.get(1)) {
+        Ok(Box::new(Expr::Const(Const::Bool(left.eq(&right)))))
+    } else {
+        Err("The list is empty".to_string())
     }
 }
 
-fn sane_add(param: Box<Expr>) -> Result<Box<Expr>, String> {
-    match *param {
-        Expr::List(List { items }) => {
-            let left = *items.get(0).ok_or("Can't find the first argument")?.clone();
-            let right = *items.get(1).ok_or("Can't find the second argument")?.clone();
-            if let (Expr::Const(Const::Numeric(left)), Expr::Const(Const::Numeric(right))) = (left, right) {
-                Ok(Box::new(Expr::Const(Const::Numeric(left.add(right)))))
-            } else {
-                Err("The list doesn't match".to_string())
-            }
-        }
-        _ => Err("Not a list (sane_add)".to_string())
+fn sane_add(params: Vec<Box<Expr>>) -> Result<Box<Expr>, String> {
+    let left = *params.get(0).ok_or("Can't find the first argument")?.clone();
+    let right = *params.get(1).ok_or("Can't find the second argument")?.clone();
+    if let (Expr::Const(Const::Numeric(left)), Expr::Const(Const::Numeric(right))) = (left, right) {
+        Ok(Box::new(Expr::Const(Const::Numeric(left.add(right)))))
+    } else {
+        Err("The list doesn't match".to_string())
     }
 }
 
-fn sane_inc(param: Box<Expr>) -> Result<Box<Expr>, String> {
-    match *param {
+fn sane_inc(params: Vec<Box<Expr>>) -> Result<Box<Expr>, String> {
+    let param = *params.get(0).ok_or("Can't find the first argument")?.clone();
+    match param {
         Expr::Const(Const::Numeric(num)) => {
             Ok(Box::new(Expr::Const(Const::Numeric(num + 1.0))))
         }
@@ -381,8 +357,9 @@ fn sane_inc(param: Box<Expr>) -> Result<Box<Expr>, String> {
     }
 }
 
-fn sane_print(param: Box<Expr>) -> Result<Box<Expr>, String> {
-    println!("{:#?}", param);
+fn sane_print(params: Vec<Box<Expr>>) -> Result<Box<Expr>, String> {
+    let param = params.get(0).ok_or("Can't find the first argument")?.clone();
+    println!("{:#?}", *param);
     Ok(param)
 }
 
@@ -414,36 +391,12 @@ fn execute_sane(input: &str) -> Result<Box<Expr>, String> {
         ("true".to_string(), Box::new(Expr::Const(Const::Bool(true)))),
         ("false".to_string(), Box::new(Expr::Const(Const::Bool(false)))),
     ];
-    println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
+    // println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
     execute(expr, stack)
 }
 
-fn create_build_in(name: String, fun: BuildInFun, nry: i32) -> (String, Box<Expr>) {
-    fn build_arg(n: i32) -> Box<Expr> {
-        let mut items = vec![];
-        for i in 0..n {
-            items.push(Box::new(Expr::Ident(format!("$param_{}", i))))
-        }
-        Box::new(Expr::List(List { items }))
-    };
-
-    fn create_build_in_(name: String, fun: BuildInFun, nry: i32, n: i32) -> Box<Expr> {
-        if n == 0 {
-            // TODO all build in should work with List{} as an argument
-            let arg = build_arg(nry);
-            let fun = Box::new(Expr::BuildIn(BuildIn { fun, name: name.clone() }));
-            Box::new(Expr::Bind(Bind { arg, fun }))
-        } else {
-            let param = format!("$param_{}", n - 1);
-            let body = create_build_in_(name, fun, nry, n - 1);
-            Box::new(Expr::Fun(Fun { param, body, env: vec![] }))
-        }
-    };
-    if nry > 1 {
-        (name.to_string(), create_build_in_(name.to_string(), fun, nry, nry))
-    } else {
-        (name.to_string(), Box::new(Expr::BuildIn(BuildIn { fun, name: name.clone() })))
-    }
+fn create_build_in(name: String, fun: BuildInFun, arity: usize) -> (String, Box<Expr>) {
+    (name.to_string(), Box::new(Expr::BuildIn(BuildIn { fun, name, arity })))
 }
 
 fn stack_to_string(stack: &Stack) -> String {
@@ -477,23 +430,81 @@ fn execute(expr: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
                 Err(format!("Ident `{}` not found: {}", ident, stack_to_string(stack)))
             }
         }
-        Expr::Bind(Bind { arg, fun }) => {
-            let arg_result = execute(arg, stack)?;
-            match *execute(fun.clone(), stack)? {
-                Expr::Fun(Fun { param, body, env }) => {
-                    let mut env = env.clone();
-                    let env: &mut Stack = env.borrow_mut();
-                    // println!(">>>>> Push {:?}", param);
-                    env.push((param.clone(), arg_result));
-                    let result = execute(body.clone(), env);
-                    result
+        Expr::Bind(Bind { args, fun }) => {
+            // TODO
+            // If a regular function check how many params it has and build a function according to it
+            // If a BuiltIn check arity and do the same
+
+            fn build_curry_or_execute(current_args: Vec<Box<Expr>>, current_fun: Box<Expr>, stack: &mut Stack) -> Result<Box<Expr>, String> {
+                let arity = match *current_fun.clone() {
+                    Expr::Fun(fun) => fun.params.len(),
+                    Expr::BuildIn(build_in) => build_in.arity,
+                    _ => unreachable!()
+                };
+                let diff = arity - current_args.len();
+                if diff < 0 {
+                    return Err("Too many arguments".to_string());
                 }
-                Expr::BuildIn(build_in) => {
-                    let f: BuildInFun = build_in.fun;
-                    f(arg_result)
+                if diff == 0 {
+                    return match *current_fun.clone() {
+                        Expr::Fun(Fun { params, body, env }) => {
+                            // TODO: it is actually bad
+                            let mut env = env.clone();
+                            let env: &mut Stack = env.borrow_mut();
+                            // println!(">>>>> Push {:?}", param);
+                            // Zip params and args and push to stack
+                            //  let current_args_ = current_args.clone();
+                            for i in 0..params.len() {
+                                env.push((params[i].clone(), current_args[i].clone()));
+                            }
+                            execute(body.clone(), env)
+                        }
+                        Expr::BuildIn(build_in) => {
+                            let f: BuildInFun = build_in.fun;
+                            f(current_args)
+                        }
+                        _ => Err(format!("Expr {:?} is not a function", current_fun))
+                    };
                 }
-                _ => Err(format!("Expr {:?} is not a function", fun))
+
+                let mut params = vec![];
+                for i in 0..diff {
+                    params.push(format!("$param_#{}", i));
+                }
+
+                let params_as_idents = &mut params.iter()
+                    .map(|param| {
+                        Box::new(Expr::Ident(param.clone()))
+                    })
+                    .collect::<Vec<Box<Expr>>>();
+                let mut params_to_bind = current_args.clone();
+                params_to_bind.append(params_as_idents);
+
+                let body = Box::new(
+                    Expr::Bind(
+                        Bind {
+                            args: params_to_bind,
+                            fun: current_fun,
+                        }
+                    )
+                );
+                return Ok(
+                    Box::new(Expr::Fun(
+                        Fun {
+                            params,
+                            body,
+                            env: stack.clone(),
+                        }))
+                );
             }
+
+            // evaluate arguments
+            let mut arg_results = vec![];
+            for arg in args.into_iter() {
+                arg_results.push(execute(arg, stack)?);
+            }
+            let fun = execute(fun.clone(), stack)?;
+            build_curry_or_execute(arg_results, fun, stack)
         }
         Expr::IfThenElse(IfThenElse { cond, then, otherwise }) => {
             let result = execute(cond, stack)?;
@@ -546,21 +557,21 @@ mod tests {
     }
 
     #[test]
-    fn parse_bind_left() {
-        let result = *parse_sane("f < 1").unwrap();
-        assert_eq!(result, Expr::Bind(Bind { arg: Box::new(Expr::Const(Const::Numeric(1.0))), fun: Box::new(Expr::Ident("f".to_string())) }));
+    fn parse_bind_0() {
+        let result = *parse_sane("app 1 to f").unwrap();
+        assert_eq!(result, Expr::Bind(Bind { args: vec![Box::new(Expr::Const(Const::Numeric(1.0)))], fun: Box::new(Expr::Ident("f".to_string())) }));
     }
 
     #[test]
-    fn parse_bind_right() {
-        let result = *parse_sane("1 > f").unwrap();
-        assert_eq!(result, Expr::Bind(Bind { arg: Box::new(Expr::Const(Const::Numeric(1.0))), fun: Box::new(Expr::Ident("f".to_string())) }));
+    fn parse_bind_1() {
+        let result = parse_sane("app 2 to app 1 to f").unwrap().to_source();
+        assert_eq!(result, "app 2.0 to app 1.0 to f");
     }
 
     #[test]
     fn parse_fun() {
         let result = *parse_sane("fun a => a").unwrap();
-        assert_eq!(result, Expr::Fun(Fun { param: "a".to_string(), body: Box::new(Expr::Ident("a".to_string())), env: vec![] }));
+        assert_eq!(result, Expr::Fun(Fun { params: vec!["a".to_string()], body: Box::new(Expr::Ident("a".to_string())), env: vec![] }));
     }
 
     #[test]
@@ -577,25 +588,25 @@ mod tests {
 
     #[test]
     fn test_execute_bind_0() {
-        let result = *execute_sane("(fun a => a) < 2").unwrap();
+        let result = *execute_sane("app 2 to (fun a => a)").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
     }
 
     #[test]
     fn test_execute_bind_1() {
-        let result = *execute_sane("let f = fun a => a in f < 2").unwrap();
+        let result = *execute_sane("let f = fun a => a in app  2 to f").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
     }
 
     #[test]
     fn test_execute_bind_2() {
-        let result = *execute_sane("let f = fun a => fun b => a in 1 > 2 > f").unwrap();
+        let result = *execute_sane("let f = fun a => fun b => a in app 1 to app 2 to f").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(2.0)));
     }
 
     #[test]
     fn test_execute_bind_3() {
-        let result = *execute_sane("let f = fun a => fun b => b in 1 > 2 > f").unwrap();
+        let result = *execute_sane("let f = fun a => fun b => b in app 1 to app 2 to f").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
     }
 
@@ -619,13 +630,13 @@ mod tests {
 
     #[test]
     fn test_execute_head_1() {
-        let result = *execute_sane("[1] > head").unwrap();
+        let result = *execute_sane("app [1] to  head").unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(1.0)));
     }
 
     #[test]
     fn test_execute_tail_0() {
-        let result = *execute_sane("[] > tail").unwrap();
+        let result = *execute_sane("app [] to tail").unwrap();
         assert_eq!(result, Expr::List(
             List {
                 items: vec![]
@@ -635,7 +646,7 @@ mod tests {
 
     #[test]
     fn test_execute_tail_1() {
-        let result = *execute_sane("[1] > tail").unwrap();
+        let result = *execute_sane("app [1] to tail").unwrap();
         assert_eq!(result, Expr::List(
             List {
                 items: vec![]
@@ -645,7 +656,7 @@ mod tests {
 
     #[test]
     fn test_execute_tail_2() {
-        let result = *execute_sane("[1;2] > tail").unwrap();
+        let result = *execute_sane("app [1;2] to tail").unwrap();
         assert_eq!(result, Expr::List(
             List {
                 items: vec![
@@ -657,25 +668,25 @@ mod tests {
 
     #[test]
     fn test_execute_eq_0() {
-        let result = *execute_sane("1 > 1 > eq").unwrap();
+        let result = *execute_sane("app 1, 1 to eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
     #[test]
     fn test_execute_eq_1() {
-        let result = *execute_sane("(fun a => b) > (fun a => b) > eq").unwrap();
+        let result = *execute_sane("app fun a => b, fun a => b to eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
     #[test]
     fn test_execute_eq_2() {
-        let result = *execute_sane("(fun a => b) > (fun a => c) > eq").unwrap();
+        let result = *execute_sane("app fun a => b, fun a => c to eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(false)));
     }
 
     #[test]
     fn test_execute_eq_3() {
-        let result = *execute_sane("[] > [] > eq").unwrap();
+        let result = *execute_sane("app [], [] to eq").unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
@@ -684,7 +695,7 @@ mod tests {
         let result = *execute_sane(
             r#"let a = fun b => b in
                let c = fun d => d in
-                 (1 > c) > (1 > a) > eq"#).unwrap();
+                 app app 1 to c, app 1 to a to eq"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
@@ -693,16 +704,16 @@ mod tests {
         let result = *execute_sane(
             r#"let eqa = fun left =>
                   let eqa_ = fun right =>
-                    left > right > eq
+                    app left, right to eq
                   in eqa_
-               in 1 > 1 > eqa "#).unwrap();
+               in app 1 to app 1 to eqa"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(true)));
     }
 
     #[test]
     fn test_execute_add_0() {
         let result = *execute_sane(
-            r#"1 > 2 > add"#).unwrap();
+            r#"app 1, 2 to add"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Numeric(3.0)));
     }
 
@@ -711,11 +722,11 @@ mod tests {
         let result = *execute_sane(
             r#"let c = fun a =>
                  fun b =>
-                   a > b > eq
+                   app a, b to eq
                in
-                 let curr = 1 > c
+                 let curr = app 1 to c
                  in
-                   2 > curr"#).unwrap();
+                   app 2 to curr"#).unwrap();
         assert_eq!(result, Expr::Const(Const::Bool(false)));
     }
 
@@ -777,14 +788,14 @@ mod tests {
                and let flop = fun b =>
                  b > flip
                in 0 > flip"#).unwrap().to_source();
-        assert_eq!(result, "10.0");
+        assert_eq!(result, "Err");
     }
 
     #[test]
     fn test_execute_inc_0() {
         let result = execute_sane(
             r#"let a = 1 in
-                 a > inc"#).unwrap().to_source();
+                 app a to inc"#).unwrap().to_source();
         assert_eq!(result, "2.0");
     }
 
@@ -799,31 +810,31 @@ mod tests {
     fn test_execute_if_1() {
         let result = execute_sane(
             r#"let plus_one = fun a =>
-                 a > inc
+                 app a to inc
                in
-               let b = 1 > plus_one in
-               if b > 2 > eq then 1 else 2"#).unwrap().to_source();
+               let b = app 1 to plus_one in
+               if app b, 2 to eq then 1 else 2"#).unwrap().to_source();
         assert_eq!(result, "1.0");
     }
 
     #[test]
     fn test_count_0() {
         let result = execute_sane(
-            r#"[] > count"#).unwrap().to_source();
+            r#"app [] to count"#).unwrap().to_source();
         assert_eq!(result, "0.0");
     }
 
     #[test]
     fn test_count_1() {
         let result = execute_sane(
-            r#"[1] > count"#).unwrap().to_source();
+            r#"app [1] to count"#).unwrap().to_source();
         assert_eq!(result, "1.0");
     }
 
     #[test]
     fn test_concat_0() {
         let result = execute_sane(
-            r#"[1] > [2] > concat"#).unwrap().to_source();
+            r#"app [1], [2] to concat"#).unwrap().to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 
@@ -831,15 +842,15 @@ mod tests {
     fn test_auto_curr_0() {
         let result = parse_sane(
             r#"fun a b c => a"#).unwrap().to_source();
-        assert_eq!(result, "fun a => fun b => fun c => a");
+        assert_eq!(result, "fun a b c => a");
     }
 
     #[test]
     fn test_auto_curr_1() {
         let result = execute_sane(
-            r#"let f = fun a b => a > b > add in
-               let my_inc = 1 > f in
-               2 > my_inc"#).unwrap().to_source();
+            r#"let f = fun a b => app a, b to add in
+               let my_inc = app 1 to f in
+               app 2 to my_inc"#).unwrap().to_source();
         assert_eq!(result, "3.0");
     }
 
@@ -847,16 +858,16 @@ mod tests {
     fn test_auto_curr_2() {
         let result = execute_sane(
             r#"let f = add in
-               let my_inc = 1 > f in
-               2 > my_inc"#).unwrap().to_source();
+               let my_inc = app 1 to f in
+               app 2 to my_inc"#).unwrap().to_source();
         assert_eq!(result, "3.0");
     }
 
     #[test]
     fn test_auto_curr_3() {
         let result = execute_sane(
-            r#"let my_inc = 1 > add in
-               2 > my_inc"#).unwrap().to_source();
+            r#"let my_inc = app 1 to add in
+               app 2 to my_inc"#).unwrap().to_source();
         assert_eq!(result, "3.0");
     }
 }

@@ -1,7 +1,9 @@
 #### TODO ####
 
 * Generate embedded functions for n-ary built-ins - DONE
-* Autogenerate curryable for multiparameter functions - DONE
+* Autogenerate curryable for multiparameter functions
+  * Introduce many parameters functions
+* zero-arity functions 
 * Allow for calling functions declared in the let/and - DONE
   ```
   let flip = fun a => 
