@@ -11,6 +11,8 @@ use std::fmt::{Debug, Formatter};
 use core::fmt;
 use std::ops::{Add, Deref};
 use std::rc::Rc;
+use std::cell::RefCell;
+use std::borrow::Cow::Borrowed;
 
 fn main() {}
 
@@ -34,7 +36,7 @@ struct Bind {
 struct Fun {
     pub params: Vec<String>,
     pub body: Rc<Expr>,
-    pub env: Stack,
+    pub env: Rc<RefCell<Stack>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -220,7 +222,7 @@ fn parse_fun(pair: Pair<Rule>) -> Result<Rc<Expr>, String> {
     Ok(Rc::new(Expr::Fun(Fun {
         params,
         body: parse_pair(body)?,
-        env: vec![],
+        env: Rc::new(RefCell::new(vec![]))
     })))
 }
 
@@ -416,12 +418,18 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
         Expr::LetIn(let_in) => {
             let let_in = let_in.clone();
             let mut pushed = 0; // TODO execute lets part.
-            for ident_expr in let_in.lets.iter() {
-                // let executed = execute(ident_expr, stack);
-                stack.push(ident_expr.clone());
+            for (ident, expr) in let_in.lets.iter().cloned() {
+                let expr = execute(expr, stack)?;
+                // TODO For let_and propagate all the functions around all the environments
+                if let Expr::Fun(fun) = &*expr {
+                    RefCell::replace_with(&fun.env, |env| {
+                        env.push((ident.clone(), expr.clone()));
+                        env.clone()
+                    });
+                }
+                stack.push((ident, expr));
                 pushed += 1;
             }
-            // println!(">>> LetIn Push: {}", let_in.var);
             let result = execute(let_in.in_part, stack);
             for _ in 0..pushed {
                 stack.pop().unwrap();
@@ -430,8 +438,8 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
             result
         }
         Expr::Ident(ident) => {
-            if let Some(item) = stack.iter().rev().find(|item| { &item.0 == ident }) {
-                Ok(execute(item.clone().1, stack)?)  // TODO might be inefficient (optimize referencing)
+            if let Some((_, expr)) = stack.iter().rev().find(|item| { &item.0 == ident }) {
+                Ok(expr.clone())
             } else {
                 Err(format!("Ident `{}` not found: {}", ident, stack_to_string(stack)))
             }
@@ -455,8 +463,7 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
                     return match &*current_fun {
                         Expr::Fun(Fun { params, body, env }) => {
                             // TODO: it is actually bad
-                            let mut env = env.clone();
-                            let env: &mut Stack = env.borrow_mut();
+                            let env = &mut RefCell::borrow(env).clone();
                             // println!(">>>>> Push {:?}", param);
                             // Zip params and args and push to stack
                             //  let current_args_ = current_args.clone();
@@ -499,7 +506,7 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
                         Fun {
                             params,
                             body,
-                            env: stack.clone(),
+                            env: Rc::new(RefCell::new(stack.clone())),
                         }))
                 );
             }
@@ -530,7 +537,8 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
             Ok(Rc::new(Expr::List(List { items: result })))
         }
         Expr::Fun(fun) => {
-            Ok(Rc::new(Expr::Fun(Fun { env: stack.clone(), ..fun.clone() })))
+            RefCell::replace(&fun.env, stack.clone());
+            Ok(expr)
         }
         _ => Ok(expr)
     }
@@ -579,7 +587,7 @@ mod tests {
     #[test]
     fn parse_fun() {
         let result = &*parse_sane("fun a => a").unwrap();
-        assert_eq!(result, &Expr::Fun(Fun { params: vec!["a".to_string()], body: Rc::new(Expr::Ident("a".to_string())), env: vec![] }));
+        assert_eq!(result, &Expr::Fun(Fun { params: vec!["a".to_string()], body: Rc::new(Expr::Ident("a".to_string())), env: Rc::new(RefCell::new(vec![])) }));
     }
 
     #[test]
@@ -743,15 +751,15 @@ mod tests {
         let result = execute_sane(
             r#"let map = fun fn =>
                  let map_ = fun list =>
-                   if (list > count) > 0 > eq then
+                   if app (app list to count), 0 to eq then
                      []
                    else
-                     let h = fn < head < list in
-                     let t = list > tail in
-                     [h] > (t > map_) > concat
+                     let h = app (app list to head) to fn in
+                     let t = app list to tail in
+                     app [h], (app t to map_) to concat
                  in map_
                in
-                 [1; 2; 3] > (fun a => a > inc) > map
+                 app [1; 2; 3], (fun a => app a to inc) to map
             "#
         ).unwrap().to_source();
         assert_eq!(result, "[2.0; 3.0; 4.0]");
@@ -761,19 +769,19 @@ mod tests {
     fn test_reduce_0() {
         let result = execute_sane(
             r#"let reduce = fun fn =>
-                 let reduce_0 = fun acc => fun list =>
-                     if (count < print < list) > 0 > eq then
+                 let reduce_0 = fun acc list =>
+                     if app (app (app list to print) to count), 0 to eq then
                        acc
                      else
-                       let h = list > head in
-                       let t = list > tail in
-                       let new_acc = h > acc > fn in
-                       t > new_acc > reduce_0
+                       let h = app list to head in
+                       let t = app list to tail in
+                       let new_acc = app h, acc to fn in
+                         app new_acc, t to reduce_0
                  in reduce_0
                in
-                 let sum = fun acc => fun item => acc > item > add
+                 let sum = add
                  in
-                   [1; 2; 3] > 0 > sum > reduce
+                   app 0, [1; 2; 3] to app sum to reduce
             "#
         ).unwrap().to_source();
         assert_eq!(result, "6.0");
@@ -792,10 +800,10 @@ mod tests {
     fn test_recursive_1() {
         let result = execute_sane(
             r#"let flip = fun a =>
-                 if a > 10.0 > eq then a else flop < inc < a
-               and let flop = fun b =>
-                 b > flip
-               in 0 > flip"#).unwrap().to_source();
+                 if (app a, 10.0 to eq) then a else (app (app a to inc) to flop)
+               in let flop = fun b =>
+                 app b to flip
+               in app 0 to flip"#).unwrap().to_source();
         assert_eq!(result, "Err");
     }
 
