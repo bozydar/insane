@@ -36,8 +36,17 @@ struct Bind {
 struct Fun {
     pub params: Vec<String>,
     pub body: Rc<Expr>,
+    pub closure: RefCell<bool>,
+    pub rec_decorated: RefCell<bool>,
     pub env: Rc<RefCell<Stack>>,
 }
+
+impl fmt::Display for Fun {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.params)
+    }
+}
+
 
 #[derive(Debug, PartialEq, Clone)]
 struct List {
@@ -221,8 +230,10 @@ fn parse_fun(pair: Pair<Rule>) -> Result<Rc<Expr>, String> {
 
     Ok(Rc::new(Expr::Fun(Fun {
         params,
+        closure: RefCell::new(false),
+        rec_decorated: RefCell::new(false),
         body: parse_pair(body)?,
-        env: Rc::new(RefCell::new(vec![]))
+        env: Rc::new(RefCell::new(vec![])),
     })))
 }
 
@@ -351,6 +362,7 @@ fn sane_print(params: Vec<Rc<Expr>>) -> Result<Rc<Expr>, String> {
     println!("{:#?}", *param);
     Ok(param)
 }
+
 fn parse_pair(pair: Pair<'_, Rule>) -> Result<Rc<Expr>, String> {
     let rule = pair.as_rule();
     match rule {
@@ -417,31 +429,56 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
     match &*expr {
         Expr::LetIn(let_in) => {
             let let_in = let_in.clone();
-            let mut pushed = 0; // TODO execute lets part.
+
+            let mut pushed = 0;
+            let mut functions: Stack = vec![];
+            let mut to_append: Stack = vec![];
+
+            // execute all the R-expressions
+            // and put functions on the side for further analysis
             for (ident, expr) in let_in.lets.iter().cloned() {
                 let expr = execute(expr, stack)?;
-                // TODO For let_and propagate all the functions around all the environments
-                if let Expr::Fun(fun) = &*expr {
-                    RefCell::replace_with(&fun.env, |env| {
-                        env.push((ident.clone(), expr.clone()));
-                        env.clone()
-                    });
+
+                if let Expr::Fun(_) = *expr {
+                    functions.push((ident.clone(), expr.clone()))
                 }
-                stack.push((ident, expr));
-                pushed += 1;
+                to_append.push((ident.clone(), expr));
             }
+
+            // decorate each env of the function with the access to all the current stack
+            // but decorate only these functions which haven't been decorated so far
+            for (_ident, expr) in functions {
+                if let Expr::Fun(fun) = &*expr {
+                    let mut rec_decorated = fun.rec_decorated.borrow_mut();
+                    if !*rec_decorated {
+                        &fun.env.replace_with(|env| {
+                            // TODO
+                            // 1. Introduce global function stack to not copy them every time
+                            // 2. add only these variables which will be used inside
+                            env.append(&mut let_in.lets.clone());
+                            env.clone()
+                        });
+                        *rec_decorated = true;
+                    }
+                }
+            }
+
+            // put all the declaration on the stack
+            pushed += to_append.len();
+            stack.append(&mut to_append);
             let result = execute(let_in.in_part, stack);
+            stack.truncate(stack.len() - pushed);
             for _ in 0..pushed {
                 stack.pop().unwrap();
             }
-            // println!(">>> LetIn Pop {}", popped.0);
             result
         }
         Expr::Ident(ident) => {
             if let Some((_, expr)) = stack.iter().rev().find(|item| { &item.0 == ident }) {
                 Ok(expr.clone())
             } else {
-                Err(format!("Ident `{}` not found: {}", ident, stack_to_string(stack)))
+                // Err(format!("Ident `{}` not found: {}", ident, stack_to_string(stack)))
+                Err(format!("Ident `{}` not found", ident))
             }
         }
         Expr::Bind(Bind { args, fun }) => {
@@ -453,7 +490,10 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
                 let arity = match &*current_fun {
                     Expr::Fun(fun) => fun.params.len(),
                     Expr::BuildIn(build_in) => build_in.arity,
-                    _ => unreachable!()
+                    _ => {
+                        // println!("{:?}", stack);
+                        unreachable!("{:?}", current_fun)
+                    }
                 };
                 let diff = arity - current_args.len();
                 if diff < 0 {
@@ -461,12 +501,9 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
                 }
                 if diff == 0 {
                     return match &*current_fun {
-                        Expr::Fun(Fun { params, body, env }) => {
+                        Expr::Fun(Fun { params, body, env, .. }) => {
                             // TODO: it is actually bad
                             let env = &mut RefCell::borrow(env).clone();
-                            // println!(">>>>> Push {:?}", param);
-                            // Zip params and args and push to stack
-                            //  let current_args_ = current_args.clone();
                             for i in 0..params.len() {
                                 env.push((params[i].clone(), current_args[i].clone()));
                             }
@@ -482,7 +519,7 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
 
                 let mut params = vec![];
                 for i in 0..diff {
-                    params.push(format!("$param_#{}", i));
+                    params.push(format!("$param_{}", i));
                 }
 
                 let params_as_idents = &mut params.iter()
@@ -504,6 +541,8 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
                 return Ok(
                     Rc::new(Expr::Fun(
                         Fun {
+                            closure: RefCell::new(true),
+                            rec_decorated: RefCell::new(true),
                             params,
                             body,
                             env: Rc::new(RefCell::new(stack.clone())),
@@ -516,6 +555,7 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
             for arg in args.into_iter() {
                 arg_results.push(execute(arg.clone(), stack)?);
             }
+            // println!("{:?}", fun.clone());
             let fun = execute(fun.clone(), stack)?;
             build_curry_or_execute(arg_results, fun, stack)
         }
@@ -537,7 +577,10 @@ fn execute(expr: Rc<Expr>, stack: &mut Stack) -> Result<Rc<Expr>, String> {
             Ok(Rc::new(Expr::List(List { items: result })))
         }
         Expr::Fun(fun) => {
-            RefCell::replace(&fun.env, stack.clone());
+            if !*RefCell::borrow(&fun.closure) {
+                RefCell::replace(&fun.env, stack.clone());
+                RefCell::replace(&fun.closure, true);
+            }
             Ok(expr)
         }
         _ => Ok(expr)
@@ -573,6 +616,12 @@ mod tests {
     }
 
     #[test]
+    fn execute_let_in_1() {
+        let result = execute_sane("let a = 1 and let b = 2 in [a; b]").unwrap().to_source();
+        assert_eq!(result, "[1.0; 2.0]");
+    }
+
+    #[test]
     fn parse_bind_0() {
         let result = &*parse_sane("app 1 to f").unwrap();
         assert_eq!(result, &Expr::Bind(Bind { args: vec![Rc::new(Expr::Const(Const::Numeric(1.0)))], fun: Rc::new(Expr::Ident("f".to_string())) }));
@@ -587,7 +636,7 @@ mod tests {
     #[test]
     fn parse_fun() {
         let result = &*parse_sane("fun a => a").unwrap();
-        assert_eq!(result, &Expr::Fun(Fun { params: vec!["a".to_string()], body: Rc::new(Expr::Ident("a".to_string())), env: Rc::new(RefCell::new(vec![])) }));
+        assert_eq!(result, &Expr::Fun(Fun { rec_decorated: RefCell::new(false), params: vec!["a".to_string()], body: Rc::new(Expr::Ident("a".to_string())), env: Rc::new(RefCell::new(vec![])), closure: RefCell::new(false) }));
     }
 
     #[test]
@@ -711,7 +760,7 @@ mod tests {
         let result = &*execute_sane(
             r#"let a = fun b => b in
                let c = fun d => d in
-                 app app 1 to c, app 1 to a to eq"#).unwrap();
+                 app app 1 to c, app 1 to a to eq"#).unwrap(); // eq(c(1), a(1))
         assert_eq!(result, &Expr::Const(Const::Bool(true)));
     }
 
@@ -759,8 +808,8 @@ mod tests {
                      app [h], (app t to map_) to concat
                  in map_
                in
-                 app [1; 2; 3], (fun a => app a to inc) to map
-            "#
+                 app [1; 2; 3] to app (fun a => app a to inc) to map
+            "# // map((a) => a + 1)(new List<int>(1, 2, 3))
         ).unwrap().to_source();
         assert_eq!(result, "[2.0; 3.0; 4.0]");
     }
@@ -801,10 +850,21 @@ mod tests {
         let result = execute_sane(
             r#"let flip = fun a =>
                  if (app a, 10.0 to eq) then a else (app (app a to inc) to flop)
-               in let flop = fun b =>
+               and let flop = fun b =>
                  app b to flip
                in app 0 to flip"#).unwrap().to_source();
-        assert_eq!(result, "Err");
+        assert_eq!(result, "10.0");
+    }
+
+    #[test]
+    fn test_recursive_2() {
+        let result = execute_sane(
+            r#"let flip = fun a =>
+                 if (app a, 10.0 to eq) then a else (app (app a to inc) to flop)
+               in let flop = fun b =>
+                 app b to flip
+               in app 0 to flip"#);
+        assert_eq!(result, Err("Ident `flop` not found".to_string()));
     }
 
     #[test]
@@ -857,8 +917,26 @@ mod tests {
     #[test]
     fn test_auto_curr_0() {
         let result = parse_sane(
-            r#"fun a b c => a"#).unwrap().to_source();
-        assert_eq!(result, "fun a b c => a");
+            r#"let f = fun a b c => a
+               in app 1 to f"#).unwrap().to_source();
+        assert_eq!(result, "let f = fun a b c => a in app 1.0 to f");
+    }
+
+    #[test]
+    fn test_auto_curr_01() {
+        let result = execute_sane(
+            r#"let f = fun a b c => a
+               in app 1 to f"#).unwrap().to_source();
+        assert_eq!(result, "fun $param_0 $param_1 => app 1.0, $param_0, $param_1 to fun a b c => a");
+    }
+
+    #[test]
+    fn test_auto_curr_02() {
+        let result = execute_sane(
+            r#"let f = fun a b c => [a; b; c]
+               in let g = app 1 to f
+               in app 2, 3 to g"#).unwrap().to_source();
+        assert_eq!(result, "[1.0; 2.0; 3.0]");
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 * Generate embedded functions for n-ary built-ins - DONE
 * Autogenerate curryable for multiparameter functions
-  * Introduce many parameters functions
+  * Introduce many parameters functions - DONE
 * zero-arity functions 
 * Allow for calling functions declared in the let/and - DONE
   ```
@@ -16,7 +16,7 @@
   in 
     10 > flip 
   ```
-* Clone only when needed
+* Clone only when needed - DONE
 * Add line information to Err
 * REPL
 * modules/namespaces
