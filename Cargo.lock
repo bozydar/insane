@@ -85,15 +85,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pest-experiments"
-version = "0.1.0"
-dependencies = [
- "lazy_static",
- "pest",
- "pest_derive",
-]
-
-[[package]]
 name = "pest_derive"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -143,6 +134,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "053a8c8bcc71fcce321828dc897a98ab9760bef03a4fc36693c231e5b3216cfe"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "sane-cli"
+version = "0.1.0"
+dependencies = [
+ "sane-core",
+]
+
+[[package]]
+name = "sane-core"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "pest",
+ "pest_derive",
 ]
 
 [[package]]
