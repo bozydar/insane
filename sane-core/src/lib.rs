@@ -136,27 +136,27 @@ mod tests {
         assert_eq!(result, "[]");
     }
 
-    // #[test]
-    // fn test_execute_tail_1() {
-    //     let result = &*execute_sane("app [1] to tail").unwrap();
-    //     assert_eq!(result, &Expr::List(
-    //         List {
-    //             items: vec![]
-    //         }
-    //     ));
-    // }
+    #[test]
+    fn test_execute_tail_1() {
+        let result = &*execute_sane("app [1] to tail").unwrap();
+        assert_eq!(result, &Expr::List(
+            List {
+                items: vec![]
+            }
+        ));
+    }
 
-    // #[test]
-    // fn test_execute_tail_2() {
-    //     let result = &*execute_sane("app [1;2] to tail").unwrap();
-    //     assert_eq!(result, &Expr::List(
-    //         List {
-    //             items: vec![
-    //                 Rc::new(Expr::Const(Const::Numeric(2.0)))
-    //             ]
-    //         }
-    //     ));
-    // }
+    #[test]
+    fn test_execute_tail_2() {
+        let result = &*execute_sane("app [1;2] to tail").unwrap();
+        assert_eq!(result, &Expr::List(
+            List {
+                items: vec![
+                    Rc::new(Expr::Const(Const::Numeric(2.0)))
+                ]
+            }
+        ));
+    }
 
     // #[test]
     // fn test_execute_eq_0() {

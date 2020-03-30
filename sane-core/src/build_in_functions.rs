@@ -2,22 +2,22 @@ use std::rc::Rc;
 use crate::parse::{Expr, Position, ExprResult, Error};
 use crate::list::List;
 use crate::const_expr::{Const, ConstType};
-use lazy_static::lazy_static;
+
 use crate::execute::Stack;
 use crate::build_in::{BuildInFun, BuildIn};
 
 pub fn build_in_functions() -> Stack {
     vec![
         create_build_in("head".to_string(), sane_head, 1),
-        // create_build_in("tail".to_string(), sane_tail, 1),
-        // create_build_in("eq".to_string(), sane_eq, 2),
-        // create_build_in("inc".to_string(), sane_inc, 1),
+        create_build_in("tail".to_string(), sane_tail, 1),
+        create_build_in("eq".to_string(), sane_eq, 2),
+        create_build_in("inc".to_string(), sane_inc, 1),
         create_build_in("count".to_string(), sane_count, 1),
         create_build_in("concat".to_string(), sane_concat, 2),
-        // create_build_in("add".to_string(), sane_add, 2),
-        // create_build_in("print".to_string(), sane_print, 1),
-        // ("true".to_string(), Rc::new(Expr::Const(Const::Bool(true)))),
-        // ("false".to_string(), Rc::new(Expr::Const(Const::Bool(false)))),
+        create_build_in("add".to_string(), sane_add, 2),
+        create_build_in("print".to_string(), sane_print, 1),
+        ("true".to_string(), Rc::new(Expr::Const(Const::Bool(true)))),
+        ("false".to_string(), Rc::new(Expr::Const(Const::Bool(false)))),
     ]
 }
 
@@ -70,56 +70,64 @@ fn sane_concat(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
     }
 }
 
-// fn sane_tail(params: Vec<Rc<Expr>>) -> Result<Rc<Expr>, String> {
-//     let param = params.first().ok_or("parameter error")?.deref();
-//     match param {
-//         Expr::List(List { items }) => {
-//             let new_items =
-//                 if items.is_empty() {
-//                     vec![]
-//                 } else {
-//                     items[1..].to_vec()
-//                 };
-//             Ok(Rc::new(Expr::List(List { items: new_items })))
-//         }
-//         _ => Err("Not a list".to_string())
-//     }
-// }
+fn sane_tail(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+    let params = validate("tail", params, position, vec!["List"])?;
+
+    match &**params.first().unwrap() {
+        Expr::List(List { items, .. }) => {
+            let new_items =
+                if items.is_empty() {
+                    vec![]
+                } else {
+                    items[1..].to_vec()
+                };
+            Ok(Rc::new(Expr::List(List { items: new_items, position })))
+        }
+        _ => unreachable!()
+    }
+}
 
 
-// fn sane_eq(params: Vec<Rc<Expr>>) -> Result<Rc<Expr>, String> {
-//     if let (Some(left), Some(right)) = (params.get(0), params.get(1)) {
-//         Ok(Rc::new(Expr::Const(Const::Bool(left.eq(&right)))))
-//     } else {
-//         Err("The list is empty".to_string())
-//     }
-// }
+fn sane_eq(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+    let params = validate("eq", params, position, vec!["Any"])?;
 
-// fn sane_add(params: Vec<Rc<Expr>>) -> Result<Rc<Expr>, String> {
-//     let left = &*params.get(0).ok_or("Can't find the first argument")?.clone();
-//     let right = &*params.get(1).ok_or("Can't find the second argument")?.clone();
-//     if let (Expr::Const(Const::Numeric(left)), Expr::Const(Const::Numeric(right))) = (left, right) {
-//         Ok(Rc::new(Expr::Const(Const::Numeric(left.add(*right)))))
-//     } else {
-//         Err("The list doesn't match".to_string())
-//     }
-// }
+    if let (Some(left), Some(right)) = (params.get(0), params.get(1)) {
+        Ok(Rc::new(Expr::Const(Const{ value: ConstType::Bool(left.eq(&right)), position})))
+    } else {
+        unreachable!()
+    }
+}
 
-// fn sane_inc(params: Vec<Rc<Expr>>) -> Result<Rc<Expr>, String> {
-//     let param = &*params.get(0).ok_or("Can't find the first argument")?.clone();
-//     match param {
-//         Expr::Const(Const::Numeric(num)) => {
-//             Ok(Rc::new(Expr::Const(Const::Numeric(num + 1.0))))
-//         }
-//         _ => Err(format!("Not a numeric. `{:?}`", param))
-//     }
-// }
+fn sane_add(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+    let params = validate("add", params, position, vec!["Numeric", "Numeric"])?;
 
-// fn sane_print(params: Vec<Rc<Expr>>) -> Result<Rc<Expr>, String> {
-//     let param = params.get(0).ok_or("Can't find the first argument")?.clone();
-//     println!("{:#?}", *param);
-//     Ok(param)
-// }
+    let left = &*params.get(0).unwrap().clone();
+    let right = &*params.get(1).unwrap().clone();
+    if let (Expr::Const(Const {value: ConstType::Numeric(left), ..}), Expr::Const(Const {value: ConstType::Numeric(right), ..})) = (left, right) {
+        Ok(Rc::new(Expr::Const(Const{ value: ConstType::Numeric(left + right), position: position})))
+    } else {
+        unreachable!()
+    }
+}
+
+fn sane_inc(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+    let params = validate("add", params, position, vec!["Numeric"])?;
+
+    match &**params.first().unwrap() {
+        Expr::Const(Const {value: ConstType::Numeric(num), ..}) => {
+            Ok(Rc::new(Expr::Const(Const{value: ConstType::Numeric(num + 1.0), position})))
+        }
+        _ => unreachable!()
+    }
+}
+
+fn sane_print(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+    let params = validate("eq", params, position, vec!["Any"])?;
+
+    let param = params.get(0).unwrap().clone();
+    println!("{:#?}", *param);
+    Ok(param)
+}
 
 fn validate(name: &str, params: Vec<Rc<Expr>>, position: Position, types: Vec<&str>) -> Result<Vec<Rc<Expr>>, Error> {
     if params.len() != types.len() {
@@ -135,6 +143,19 @@ fn validate(name: &str, params: Vec<Rc<Expr>>, position: Position, types: Vec<&s
 
     for (index, (param, type_)) in params.iter().zip(types).enumerate() {
         let index = index + 1;
+        if type_ == "Any" {
+            match **param {
+                Expr::List(_) | Expr::Const(_) | Expr::Fun(_) => continue,
+                _ => return Err(
+                    Error::new(
+                        &format!("Function `{}` needs `{}` in the {} argument",
+                                 name, "Any", index
+                        ),
+                        position,
+                    )
+                )
+            };
+        }
         if type_ == "List" {
             if let Expr::List(_) = **param {
                 continue;
