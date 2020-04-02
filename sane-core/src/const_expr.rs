@@ -8,8 +8,8 @@ pub enum ConstType {
     Numeric(f64),
     Bool(bool),
 }
-
-#[derive(Debug, PartialEq, Clone)]
+                                            
+#[derive(Debug, Clone)]
 pub struct Const {
     pub value: ConstType,
     pub position: Position,
@@ -35,6 +35,12 @@ impl Const {
             value: ConstType::Bool(value),
             position,
         }
+    }
+}
+
+impl PartialEq for Const {
+    fn eq(&self, other: &Self) -> bool {
+        self.value.eq(&other.value)
     }
 }
 

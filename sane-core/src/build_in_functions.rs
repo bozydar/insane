@@ -7,6 +7,8 @@ use crate::execute::Stack;
 use crate::build_in::{BuildInFun, BuildIn};
 
 pub fn build_in_functions() -> Stack {
+    let position = Position {start: 0, end: 0};
+
     vec![
         create_build_in("head".to_string(), sane_head, 1),
         create_build_in("tail".to_string(), sane_tail, 1),
@@ -16,8 +18,8 @@ pub fn build_in_functions() -> Stack {
         create_build_in("concat".to_string(), sane_concat, 2),
         create_build_in("add".to_string(), sane_add, 2),
         create_build_in("print".to_string(), sane_print, 1),
-        ("true".to_string(), Rc::new(Expr::Const(Const::Bool(true)))),
-        ("false".to_string(), Rc::new(Expr::Const(Const::Bool(false)))),
+        ("true".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(true), position}))),
+        ("false".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(false), position}))),
     ]
 }
 
@@ -89,9 +91,13 @@ fn sane_tail(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
 
 
 fn sane_eq(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
-    let params = validate("eq", params, position, vec!["Any"])?;
+    let params = validate("eq", params, position, vec!["Any", "Any"])?;
 
     if let (Some(left), Some(right)) = (params.get(0), params.get(1)) {
+        let left = &*left.clone();
+        let right = &*right.clone();
+        dbg!(left);
+        dbg!(right);
         Ok(Rc::new(Expr::Const(Const{ value: ConstType::Bool(left.eq(&right)), position})))
     } else {
         unreachable!()
@@ -229,4 +235,117 @@ fn validate(name: &str, params: Vec<Rc<Expr>>, position: Position, types: Vec<&s
     }
 
     Ok(params)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::execute::execute_sane;
+    use crate::parse::ToSource;
+
+    #[test]
+    fn test_execute_head_1() {
+        let result = &*execute_sane("app [1] to  head").unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+
+    #[test]
+    fn test_execute_head_2() {
+        let result = &*execute_sane("app [1] to  head").unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+
+    #[test]
+    fn test_execute_tail_0() {
+        let result = &*execute_sane("app [] to tail").unwrap().to_source();
+        assert_eq!(result, "[]");
+    }
+
+    #[test]
+    fn test_execute_tail_1() {
+        let result = &*execute_sane("app [1] to tail").unwrap().to_source();
+        assert_eq!(result, "[]");
+    }
+
+    #[test]
+    fn test_execute_tail_2() {
+        let result = &*execute_sane("app [1;2] to tail").unwrap().to_source();
+        assert_eq!(result, "2.0");
+    }
+
+    #[test]
+    fn test_execute_eq_0() {
+        let result = &*execute_sane("app 1, 1 to eq").unwrap().to_source();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_execute_eq_1() {
+        let result = &*execute_sane("app fun a => b, fun a => b to eq").unwrap().to_source();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_execute_eq_2() {
+        let result = &*execute_sane("app fun a => b, fun a => c to eq").unwrap().to_source();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_execute_eq_3() {
+        let result = &*execute_sane("app [], [] to eq").unwrap().to_source();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_execute_eq_4() {
+        let result = &*execute_sane(
+            r#"let a = fun b => b in
+               let c = fun d => d in
+                 app app 1 to c, app 1 to a to eq"#).unwrap().to_source(); // eq(c(1), a(1))
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_execute_eq_5() {
+        let result = &*execute_sane(
+            r#"let eqa = fun left =>
+                  let eqa_ = fun right =>
+                    app left, right to eq
+                  in eqa_
+               in app 1 to app 1 to eqa"#).unwrap().to_source();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_execute_inc_0() {
+        let result = execute_sane(
+            r#"let a = 1 in
+                 app a to inc"#).unwrap().to_source();
+        assert_eq!(result, "2.0");
+    }
+
+
+    #[test]
+    fn test_count_0() {
+        let result = execute_sane(
+            r#"app [] to count"#).unwrap().to_source();
+        assert_eq!(result, "0.0");
+    }
+
+    #[test]
+    fn test_count_1() {
+        let result = execute_sane(
+            r#"app [1] to count"#).unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+
+
+    #[test]
+    fn test_concat_0() {
+        let result = execute_sane(
+            r#"app [1], [2] to concat"#).unwrap().to_source();
+        assert_eq!(result, "[1.0; 2.0]");
+    }
 }

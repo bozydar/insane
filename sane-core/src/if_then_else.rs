@@ -49,3 +49,31 @@ impl Execute for IfThenElse {
         }
     }
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::execute::execute_sane;
+    use crate::parse::ToSource;
+
+    #[test]
+    fn test_execute_if_0() {
+        let result = execute_sane(
+            r#"if true then 1 else 2"#).unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+
+    #[test]
+    fn test_execute_if_1() {
+        let result = execute_sane(
+            r#"let plus_one = fun a =>
+                    app a to inc
+                in
+                let b = app 1 to plus_one in
+                if app b, 2 to eq then 1 else 2"#).unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+
+}

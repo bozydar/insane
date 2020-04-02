@@ -140,3 +140,45 @@ pub fn parse_sane(input: &str) -> ExprResult {
 
     Expr::from_pair(parsed)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::const_expr::ConstType;
+
+    #[test]
+    fn parse_number() {
+        let result = &*parse_sane("-23.1").unwrap();
+        assert_eq!(result, &Expr::Const(Const { value: ConstType::Numeric(-23.1), position: Position { start: 0, end: 5 } }));
+    }
+
+    #[test]
+    fn parse_string() {
+        let result = &*parse_sane("\"test\"").unwrap();
+        assert_eq!(result, &Expr::Const(Const { value: ConstType::String("test".into()), position: Position { start: 1, end: 5 } }));
+    }
+
+    #[test]
+    fn parse_let_in_0() {
+        let result = parse_sane("let a = 1 in a").unwrap().to_source();
+        assert_eq!(result, "let a = 1.0 in a");
+    }
+
+    #[test]
+    fn parse_let_in_1() {
+        let result = parse_sane("let a = 1 and let b = 2 in [a; b]").unwrap().to_source();
+        assert_eq!(result, "let a = 1.0 and let b = 2.0 in [a; b]");
+    }
+
+    #[test]
+    fn parse_bind_1() {
+        let result = parse_sane("app 2 to app 1 to f").unwrap().to_source();
+        assert_eq!(result, "app 2.0 to app 1.0 to f");
+    }
+
+    #[test]
+    fn parse_fun() {
+        let result = &*parse_sane("fun a => a").unwrap().to_source();
+        assert_eq!(result, "fun a => a");
+    }
+}

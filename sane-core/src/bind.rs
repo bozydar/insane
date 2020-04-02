@@ -128,3 +128,46 @@ impl Execute for Bind {
         build_curry_or_execute(arg_results, fun, self.position, stack)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::execute::execute_sane;
+
+    #[test]
+    fn test_execute_bind_0() {
+        let result = &*execute_sane("app 2 to (fun a => a)").unwrap().to_source();
+        assert_eq!(result, "2.0");
+    }
+
+    #[test]
+    fn test_execute_bind_1() {
+        let result = &*execute_sane("let f = fun a => a in app  2 to f").unwrap().to_source();
+        assert_eq!(result, "2.0");
+    }
+
+    #[test]
+    fn test_execute_bind_2() {
+        let result = &*execute_sane("let f = fun a => fun b => a in app 1 to app 2 to f").unwrap().to_source();
+        assert_eq!(result, "2");
+    }
+
+    #[test]
+    fn test_execute_bind_3() {
+        let result = &*execute_sane("let f = fun a => fun b => b in app 1 to app 2 to f").unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+
+    #[test]
+    fn test_execute_curry_0() {
+        let result = &*execute_sane(
+            r#"let c = fun a =>
+                 fun b =>
+                   app a, b to eq
+               in
+                 let curr = app 1 to c
+                 in
+                   app 2 to curr"#).unwrap().to_source();
+        assert_eq!(result, "false");
+    }
+}

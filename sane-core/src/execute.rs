@@ -56,3 +56,28 @@ fn stack_to_string(stack: &Stack) -> String {
         format!("{} = {}", item.0, item.1.to_source())
     }).collect::<Vec<String>>().join("\n")
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+        
+    #[test]
+    fn test_execute_array_0() {
+        let result = execute_sane("[1; \"two\"; fun a => a]").unwrap().to_source();
+        assert_eq!(result, r#"[1.0; "two"; fun a => a]"#);
+    }
+
+    #[test]
+    fn test_execute_array_1() {
+        let result = execute_sane("[1; [2; [3]]]").unwrap().to_source();
+        assert_eq!(result, "[1.0; [2.0; [3.0]]]");
+    }
+
+    #[test]
+    fn test_execute_array_2() {
+        let result = execute_sane(r#"[1; "two"; fun a => a]"#).unwrap().to_source();
+        assert_eq!(result, r#"[1.0; "two"; fun a => a]"#);
+    }
+}

@@ -89,3 +89,28 @@ impl Execute for LetIn {
             result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::execute::execute_sane;
+
+    #[test]
+    fn execute_let_in_1() {
+        let result = execute_sane("let a = 1 and let b = 2 in [a; b]").unwrap().to_source();
+        assert_eq!(result, "[1.0; 2.0]");
+    }
+
+
+    #[test]
+    fn test_execute_let_0() {
+        let result = &*execute_sane("let a = 1 in a").unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+
+    #[test]
+    fn test_execute_let_1() {
+        let result = &*execute_sane("let a = let b = 1 in b in a").unwrap().to_source();
+        assert_eq!(result, "1.0");
+    }
+}

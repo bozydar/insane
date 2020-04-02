@@ -46,3 +46,4 @@ impl FromPair for Fun {
         })))
     }
 }
+
