@@ -48,7 +48,7 @@ impl FromPair for Fun {
 }
 
 impl ExprEq for Fun {
-    fn expr_eq(&self, other: &Expr) -> bool {
+    fn expr_eq(&self, _other: &Expr) -> bool {
         false
     }
 }

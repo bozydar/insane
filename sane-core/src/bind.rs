@@ -170,4 +170,78 @@ mod tests {
                    app 2 to curr"#).unwrap().to_source();
         assert_eq!(result, "false");
     }
+
+    #[test]
+    fn test_recursive_0() {
+        let result = execute_sane(
+            r#"let add_till_10 = fun a =>
+                 if app a, 10.0 to eq then a else app (app a to inc) to add_till_10
+               in app 0 to add_till_10"#).unwrap().to_source();
+        assert_eq!(result, "10.0");
+    }
+
+    #[test]
+    fn test_recursive_1() {
+        let result = execute_sane(
+            r#"let flip = fun a =>
+                 if (app a, 10.0 to eq) then a else (app (app a to inc) to flop)
+               and let flop = fun b =>
+                 app b to flip
+               in app 0 to flip"#).unwrap().to_source();
+        assert_eq!(result, "10.0");
+    }
+
+    #[test]
+    fn test_recursive_2() {
+        let result = execute_sane(
+            r#"let flip = fun a =>
+                 if (app a, 10.0 to eq) then a else (app (app a to inc) to flop)
+               in let flop = fun b =>
+                 app b to flip
+               in app 0 to flip"#);
+        assert_eq!(result, Err(Error::new("Ident `flop` not found", Position::new(95, 99))));
+    }
+
+    #[test]
+    fn test_auto_curr_1() {
+        let result = execute_sane(
+            r#"let f = fun a b c => a
+               in app 1 to f"#).unwrap().to_source();
+        assert_eq!(result, "fun $param_0 $param_1 => app 1.0, $param_0, $param_1 to fun a b c => a");
+    }
+
+    #[test]
+    fn test_auto_curr_2() {
+        let result = execute_sane(
+            r#"let f = fun a b c => [a; b; c]
+               in let g = app 1 to f
+               in app 2, 3 to g"#).unwrap().to_source();
+        assert_eq!(result, "[1.0; 2.0; 3.0]");
+    }
+
+    #[test]
+    fn test_auto_curr_3() {
+        let result = execute_sane(
+            r#"let f = fun a b => app a, b to add in
+               let my_inc = app 1 to f in
+               app 2 to my_inc"#).unwrap().to_source();
+        assert_eq!(result, "3.0");
+    }
+
+    #[test]
+    fn test_auto_curr_4() {
+        let result = execute_sane(
+            r#"let f = add in
+               let my_inc = app 1 to f in
+               app 2 to my_inc"#).unwrap().to_source();
+        assert_eq!(result, "3.0");
+    }
+
+    #[test]
+    fn test_auto_curr_5() {
+        let result = execute_sane(
+            r#"let my_inc = app 1 to add in
+               app 2 to my_inc"#).unwrap().to_source();
+        assert_eq!(result, "3.0");
+    }
 }

@@ -33,7 +33,7 @@ pub struct Position {
 }
 
 impl Position {
-    fn new(start: usize, end: usize) -> Position {
+    pub fn new(start: usize, end: usize) -> Position {
         Position {
             start,
             end,

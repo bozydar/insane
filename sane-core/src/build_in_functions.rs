@@ -239,7 +239,6 @@ fn validate(name: &str, params: Vec<Rc<Expr>>, position: Position, types: Vec<&s
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::execute::execute_sane;
     use crate::parse::ToSource;
 

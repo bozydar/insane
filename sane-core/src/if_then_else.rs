@@ -54,7 +54,6 @@ impl Execute for IfThenElse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::execute::execute_sane;
     use crate::parse::ToSource;
 
