@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprEq, ExprResult, ToSource, FromPair, Rule};
 use pest::iterators::{Pair};
 
 
@@ -40,5 +40,18 @@ impl Execute for List {
             result.push(item);
         }
         Ok(Rc::new(Expr::List(List { items: result, position: self.position })))
+    }
+}
+
+impl ExprEq for List {
+    fn expr_eq(&self, other: &Expr) -> bool {
+        match other {
+            Expr::List(other) => self.items.iter()
+                .zip(other.items.iter())
+                .all(|(left, right)| left.expr_eq(right)),
+            _ => false
+
+        }
+       
     }
 }

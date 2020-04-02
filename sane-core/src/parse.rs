@@ -22,6 +22,10 @@ pub trait FromPair {
     fn from_pair(pair: Pair<'_, Rule>) -> ExprResult;
 }
 
+pub trait ExprEq {
+    fn expr_eq(&self, other: &Expr) -> bool;
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Copy)]
 pub struct Position {
     pub start: usize,
@@ -87,6 +91,17 @@ pub enum Expr {
     List(List),
     IfThenElse(IfThenElse),
     BuildIn(BuildIn),
+}
+
+impl ExprEq for Expr {
+    fn expr_eq(&self, other: &Expr) -> bool {
+        match self {
+            Expr::Const(const_) => const_.expr_eq(other),
+            Expr::List(list) => list.expr_eq(other),
+            Expr::Fun(fun) => fun.expr_eq(other),
+            _ => unreachable!()
+        }
+    }
 }
 
 impl ToSource for Expr {

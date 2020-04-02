@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, ExprEq, Position, ExprResult, ToSource, FromPair, Rule};
 use pest::iterators::{Pair, Pairs};
 use core::fmt;
 use std::cell::RefCell;
@@ -47,3 +47,8 @@ impl FromPair for Fun {
     }
 }
 
+impl ExprEq for Fun {
+    fn expr_eq(&self, other: &Expr) -> bool {
+        false
+    }
+}

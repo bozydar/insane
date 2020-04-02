@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn test_execute_bind_2() {
         let result = &*execute_sane("let f = fun a => fun b => a in app 1 to app 2 to f").unwrap().to_source();
-        assert_eq!(result, "2");
+        assert_eq!(result, "2.0");
     }
 
     #[test]

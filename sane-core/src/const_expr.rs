@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, Error, ToSource, FromPair, Rule};
+use crate::parse::{Expr, ExprEq, Position, ExprResult, Error, ToSource, FromPair, Rule};
 use pest::iterators::{Pair};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -76,5 +76,15 @@ impl FromPair for Const {
                 Error::new(&format!("Unknown const type `{:?}`", rule), position).into()
             }
         }
+    }
+}
+
+impl ExprEq for Const {
+    fn expr_eq(&self, other: &Expr) -> bool {
+        match other {
+            Expr::Const(other) => self.value == other.value,
+            _ => false
+        }
+        
     }
 }

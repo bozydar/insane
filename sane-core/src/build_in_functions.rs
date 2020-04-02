@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, Error};
+use crate::parse::{Expr, ExprEq, Position, ExprResult, Error};
 use crate::list::List;
 use crate::const_expr::{Const, ConstType};
 
@@ -96,9 +96,8 @@ fn sane_eq(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
     if let (Some(left), Some(right)) = (params.get(0), params.get(1)) {
         let left = &*left.clone();
         let right = &*right.clone();
-        dbg!(left);
-        dbg!(right);
-        Ok(Rc::new(Expr::Const(Const{ value: ConstType::Bool(left.eq(&right)), position})))
+        let value = ConstType::Bool(left.expr_eq(right));
+        Ok(Rc::new(Expr::Const(Const{value, position})))
     } else {
         unreachable!()
     }
@@ -271,7 +270,7 @@ mod tests {
     #[test]
     fn test_execute_tail_2() {
         let result = &*execute_sane("app [1;2] to tail").unwrap().to_source();
-        assert_eq!(result, "2.0");
+        assert_eq!(result, "[2.0]");
     }
 
     #[test]
@@ -283,7 +282,7 @@ mod tests {
     #[test]
     fn test_execute_eq_1() {
         let result = &*execute_sane("app fun a => b, fun a => b to eq").unwrap().to_source();
-        assert_eq!(result, "true");
+        assert_eq!(result, "false");
     }
 
     #[test]
