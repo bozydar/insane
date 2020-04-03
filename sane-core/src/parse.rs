@@ -3,7 +3,8 @@ use pest::iterators::Pair;
 use std::rc::Rc;
 
 
-use std::fmt::{Debug};
+use std::fmt::{Debug, Formatter};
+use std::fmt;
 use crate::let_in::LetIn;
 use crate::ident::Ident;
 use crate::const_expr::Const;
@@ -32,6 +33,41 @@ pub struct Position {
     pub end: usize,
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Copy)]
+pub struct Selection {
+    pub start: (usize, usize),
+    pub end: (usize, usize),
+}
+
+impl Selection {
+    pub fn new(start: (usize, usize), end: (usize, usize)) -> Selection {
+        Selection { start, end }
+    }
+
+    pub fn from_source(source: &str, position: Position) -> Selection {
+
+        fn count_nl_till_end(source: &str, end: usize) -> (usize, usize) {
+            let mut count_nl = 1;
+            let mut count_column = 1;
+            for (index, ch) in source.chars().enumerate() {
+                if index == end {
+                    break;
+                }
+                count_column += 1;
+                if ch == '\n' {
+                    count_nl += 1;
+                    count_column = 1;
+                }
+            }
+            (count_nl, count_column)
+        }
+        
+        let start = count_nl_till_end(source, position.start);
+        let end = count_nl_till_end(source, position.end);
+        Selection::new(start, end)
+    }
+}
+
 impl Position {
     pub fn new(start: usize, end: usize) -> Position {
         Position {
@@ -43,8 +79,9 @@ impl Position {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Error {
-    message: String,
-    position: Position,
+    pub message: String,
+    pub position: Position,
+    // TODO: Backtrace
 }
 
 impl Error {
@@ -53,6 +90,12 @@ impl Error {
             message: message.to_string(),
             position,
         }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "Error in line {},{}: {}", self.position.start, self.position.end, self.message)
     }
 }
 
@@ -195,5 +238,19 @@ mod tests {
     fn parse_fun() {
         let result = &*parse_sane("fun a => a").unwrap().to_source();
         assert_eq!(result, "fun a => a");
+    }
+
+    #[test]
+    fn from_source_0() {
+        let source = "a\nab\nabc\n";
+        
+        let result = Selection::from_source(source, Position::new(0, 1));
+        assert_eq!(result, Selection { start: (1, 1), end: (1, 2) });
+
+        let result = Selection::from_source(source, Position::new(2, 3));
+        assert_eq!(result, Selection { start: (2, 1), end: (2, 2) });
+
+        let result = Selection::from_source(source, Position::new(0, 7));
+        assert_eq!(result, Selection { start: (1, 1), end: (3, 3) });
     }
 }

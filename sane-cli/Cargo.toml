@@ -8,3 +8,13 @@ edition = "2018"
 
 [dependencies]
 sane-core = {path = "../sane-core"}
+rustyline = "6.1.0"
+clap = { git = "https://github.com/clap-rs/clap/" }
+
+[[bin]]
+name = "sane"
+path = "src/main.rs"
+
+# [[bin]]
+# name = "abc"
+# path = "src/main.rs"

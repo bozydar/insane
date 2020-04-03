@@ -1,9 +1,8 @@
 #### TODO ####
 
 * Generate embedded functions for n-ary built-ins - DONE
-* Autogenerate curryable for multiparameter functions
+* Autogenerate curryable for multiparameter functions - DONE
   * Introduce many parameters functions - DONE
-* zero-arity functions 
 * Allow for calling functions declared in the let/and - DONE
   ```
   let flip = fun a => 
@@ -17,8 +16,9 @@
     10 > flip 
   ```
 * Clone only when needed - DONE
-* Add line information to Err
+* Add line information to Err - DONE
 * REPL
+* zero-arity functions 
 * modules/namespaces
   * Rule::file returns many Expr which are added to the stack
   * introduce public/private
