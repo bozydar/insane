@@ -13,9 +13,7 @@ pub type Stack = Vec<(String, Rc<Expr>)>;
 pub fn execute_sane(input: &str) -> ExprResult {
     let expr = parse_sane(input)?;
     let stack = &mut build_in_functions();
-    // println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
-    let result = execute(expr, stack)?;
-    Ok(result)
+    execute(expr, stack)
 }
 
 pub fn execute_file(input: &str, source: &str) -> ExprResult {

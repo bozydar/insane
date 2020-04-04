@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, Error, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::error::Error;
 use crate::execute::{Stack, Execute, execute};
 use pest::iterators::{Pair, Pairs};
 use crate::fun::Fun;
@@ -199,7 +200,17 @@ mod tests {
                in let flop = fun b =>
                  app b to flip
                in app 0 to flip"#);
-        assert_eq!(result, Err(Error::new("Ident `flop` not found", &Position::new(95, 99, "ADHOC"))));
+        assert_eq!(result, Err(Error { message: "Ident `flop` not found".to_string(), 
+            backtrace: vec![
+                Position { start: 95, end: 99, source: Rc::from("ADHOC") }, 
+                Position { start: 95, end: 99, source: Rc::from("ADHOC") }, 
+                Position { start: 73, end: 99, source: Rc::from("ADHOC") }, 
+                Position { start: 37, end: 100, source: Rc::from("ADHOC") }, 
+                Position { start: 188, end: 201, source: Rc::from("ADHOC") }, 
+                Position { start: 188, end: 201, source: Rc::from("ADHOC") }, 
+                Position { start: 119, end: 201, source: Rc::from("ADHOC") }
+            ]
+        }));
     }
 
     #[test]

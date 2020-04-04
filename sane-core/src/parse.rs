@@ -3,8 +3,8 @@ use pest::iterators::Pair;
 use std::rc::Rc;
 
 
-use std::fmt::{Debug, Formatter};
-use std::fmt;
+use std::fmt::{Debug};
+use crate::error::Error;
 use crate::let_in::LetIn;
 use crate::ident::Ident;
 use crate::const_expr::Const;
@@ -81,29 +81,6 @@ impl Position {
 
     pub fn from_span(span: Span, source: &str) -> Position {
         Position::new(span.start(), span.end(), source)
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Error {
-    pub message: String,
-    // TODO: Backtrace
-    // Just put Vec<Position>
-    pub backtrace: Vec<Position>,
-    // pub position: Position,
-}
-
-impl Error {
-    pub fn new(message: &str, position: &Position) -> Self {
-        Self {
-            message: message.to_string(),
-            backtrace: vec![position.clone()],
-        }
-    }
-
-    pub fn push_backtrace_item(&mut self, position: &Position) -> &mut Self {
-        self.backtrace.push(position.clone());
-        self
     }
 }
 

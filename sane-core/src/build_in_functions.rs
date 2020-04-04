@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use crate::parse::{Expr, ExprEq, Position, ExprResult, Error};
+use crate::parse::{Expr, ExprEq, Position, ExprResult};
+use crate::error::Error;
 use crate::list::List;
 use crate::const_expr::{Const, ConstType};
 

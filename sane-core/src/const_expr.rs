@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use crate::parse::{Expr, ExprEq, Position, ExprResult, Error, ToSource, FromPair, Rule};
+use crate::parse::{Expr, ExprEq, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::error::Error;
 use pest::iterators::{Pair};
 
 #[derive(Debug, PartialEq, Clone)]
