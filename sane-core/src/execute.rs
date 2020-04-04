@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, ExprResult, parse_sane, parse_file, ToSource};
+use crate::parse::{Expr, ExprResult, parse_sane, parse_file, ToSource, Position};
 
 use std::cell::RefCell;
 use crate::build_in_functions::build_in_functions;
@@ -30,32 +30,40 @@ pub fn execute_file(input: &str, source: &str) -> ExprResult {
 pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Stack) -> ExprResult {
     // println!("Executing: {:?}", expr);
     // println!("Stack: {}", stack_to_string(stack));
-    match &*expr {
-        Expr::LetIn(let_in) => {
-            let_in.execute(stack)
-        }
-        Expr::Ident(ident) => {
-            ident.execute(stack)
-        }
-        Expr::Bind(bind) => {
-            bind.execute(stack)
-        }
-        Expr::IfThenElse(if_then_else) => {
-            if_then_else.execute(stack)
-        }
-        Expr::List(list) => {
-            list.execute(stack)
-        }
-        Expr::Fun(fun) => {
-            // Can't implement it inside impl Execute for Fun because I would need to clone
-            // the Fun struct.
-            if !*RefCell::borrow(&fun.closure) {
-                RefCell::replace(&fun.env, stack.clone());
-                RefCell::replace(&fun.closure, true);
+    let pre_result = 
+        match &*expr {
+            Expr::LetIn(let_in) => {
+                (Some(let_in.position.clone()), let_in.execute(stack))
             }
-            Ok(expr)
-        }
-        _ => Ok(expr)
+            Expr::Ident(ident) => {
+                (Some(ident.position.clone()), ident.execute(stack))
+            }
+            Expr::Bind(bind) => {
+                (Some(bind.position.clone()), bind.execute(stack))
+            }
+            Expr::IfThenElse(if_then_else) => {
+                (Some(if_then_else.position.clone()), if_then_else.execute(stack))
+            }
+            Expr::List(list) => {
+                (Some(list.position.clone()), list.execute(stack))
+            }
+            Expr::Fun(fun) => {
+                // Can't implement it inside impl Execute for Fun because I would need to clone
+                // the Fun struct.
+                if !*RefCell::borrow(&fun.closure) {
+                    RefCell::replace(&fun.env, stack.clone());
+                    RefCell::replace(&fun.closure, true);
+                }
+                (None, Ok(expr))
+            }
+            _ => (None, Ok(expr))
+        };
+    match pre_result {
+        (Some(position), Err(mut error)) => {
+            error.push_backtrace_item(&position);
+            Err(error.clone())
+        },
+        (_, result) => result
     }
 }
 

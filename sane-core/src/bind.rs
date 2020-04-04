@@ -29,7 +29,7 @@ impl FromPair for Bind {
         let rule = pair.as_rule();
         let mut inner: Pairs<Rule> = pair.into_inner();
         let mut args = vec![];
-        while let Some(next_pair) = inner.next() {
+        for next_pair in inner {
             args.push(Expr::from_pair(next_pair, source)?);
         }
 

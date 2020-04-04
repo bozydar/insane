@@ -46,7 +46,7 @@ impl Selection {
         Selection { start, end, source: Rc::from(source) }
     }
 
-    pub fn from_content(content: &str, position: Position) -> Selection {
+    pub fn from_content(content: &str, position: &Position) -> Selection {
 
         fn count_nl_till_end(content: &str, end: usize) -> (usize, usize) {
             let mut count_nl = 1;
@@ -89,21 +89,21 @@ pub struct Error {
     pub message: String,
     // TODO: Backtrace
     // Just put Vec<Position>
-    pub position: Position,
+    pub backtrace: Vec<Position>,
+    // pub position: Position,
 }
 
 impl Error {
     pub fn new(message: &str, position: &Position) -> Self {
         Self {
             message: message.to_string(),
-            position: position.clone(),
+            backtrace: vec![position.clone()],
         }
     }
-}
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Error in line {},{}: {}", self.position.start, self.position.end, self.message)
+    pub fn push_backtrace_item(&mut self, position: &Position) -> &mut Self {
+        self.backtrace.push(position.clone());
+        self
     }
 }
 
@@ -182,7 +182,7 @@ impl FromPair for Expr {
 
 pub fn parse_file(input: &str, source: &str) -> ExprResult {
     let parsed = SaneParser::parse(Rule::file, input)
-        .expect(&format!("Can't parse {}", source))
+        .unwrap_or_else(|_| panic!("Can't parse {}", source))
         .next()
         .unwrap();
 
@@ -238,13 +238,13 @@ mod tests {
     fn from_content_0() {
         let source = "a\nab\nabc\n";
         
-        let result = Selection::from_content(source, Position::new(0, 1, "ADHOC"));
+        let result = Selection::from_content(source, &Position::new(0, 1, "ADHOC"));
         assert_eq!(result, Selection { start: (1, 1), end: (1, 2), source: Rc::from("ADHOC") });
 
-        let result = Selection::from_content(source, Position::new(2, 3, "ADHOC"));
+        let result = Selection::from_content(source, &Position::new(2, 3, "ADHOC"));
         assert_eq!(result, Selection { start: (2, 1), end: (2, 2), source: Rc::from("ADHOC") });
 
-        let result = Selection::from_content(source, Position::new(0, 7, "ADHOC"));
+        let result = Selection::from_content(source, &Position::new(0, 7, "ADHOC"));
         assert_eq!(result, Selection { start: (1, 1), end: (3, 3), source: Rc::from("ADHOC") });
     }
 }

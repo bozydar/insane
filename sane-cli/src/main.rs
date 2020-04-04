@@ -1,13 +1,13 @@
 extern crate sane_core;
 extern crate clap;
 
-use clap::{Arg, App, SubCommand};
+use clap::{Arg, App};
 use std::fs::File;
 use std::io::prelude::*;
 use std::result::Result;
 
 use sane_core::execute;
-use sane_core::parse::{ToSource, Selection};
+use sane_core::parse::{ToSource, Selection, Position};
 
 fn main() {
     let matches = App::new("sane programming language")
@@ -43,8 +43,20 @@ fn execute_string(content: &str, source: &str) -> Result<String, String> {
     match result {
         Ok(expr) => Ok(expr.to_source()),
         Err(err) => {
-            let selection = Selection::from_content(content, err.position);
-            Err(format!("Error: {} at {}#{}:{}", err.message, selection.source, selection.start.0, selection.start.1))
+            if let Some(position) = err.backtrace.last() {
+                let selection = Selection::from_content(content, position);
+                let backtrace = err.backtrace.iter()
+                    .map(|position| {
+                        let selection = Selection::from_content(content, position);
+                        format!("{}:{}:{}", selection.source, selection.start.0, selection.start.1)
+                    })
+                    .collect::<Vec<String>>()
+                    .join("\n");
+                Err(format!("Error: {} at {}:{}:{}\n{}", err.message, selection.source, selection.start.0, 
+                selection.start.1, backtrace))
+            } else {
+                Err(format!("Error: {}", err.message))
+            }
         }
     }
 }
