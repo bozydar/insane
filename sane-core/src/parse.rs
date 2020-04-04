@@ -20,36 +20,38 @@ pub trait ToSource {
 }
 
 pub trait FromPair {
-    fn from_pair(pair: Pair<'_, Rule>) -> ExprResult;
+    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult;
 }
 
 pub trait ExprEq {
     fn expr_eq(&self, other: &Expr) -> bool;
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Copy)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Position {
     pub start: usize,
     pub end: usize,
+    pub source: Rc<str>
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Copy)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Selection {
     pub start: (usize, usize),
     pub end: (usize, usize),
+    pub source: Rc<str>
 }
 
 impl Selection {
-    pub fn new(start: (usize, usize), end: (usize, usize)) -> Selection {
-        Selection { start, end }
+    pub fn new(start: (usize, usize), end: (usize, usize), source: &str) -> Selection {
+        Selection { start, end, source: Rc::from(source) }
     }
 
-    pub fn from_source(source: &str, position: Position) -> Selection {
+    pub fn from_content(content: &str, position: Position) -> Selection {
 
-        fn count_nl_till_end(source: &str, end: usize) -> (usize, usize) {
+        fn count_nl_till_end(content: &str, end: usize) -> (usize, usize) {
             let mut count_nl = 1;
             let mut count_column = 1;
-            for (index, ch) in source.chars().enumerate() {
+            for (index, ch) in content.chars().enumerate() {
                 if index == end {
                     break;
                 }
@@ -62,33 +64,39 @@ impl Selection {
             (count_nl, count_column)
         }
         
-        let start = count_nl_till_end(source, position.start);
-        let end = count_nl_till_end(source, position.end);
-        Selection::new(start, end)
+        let start = count_nl_till_end(content, position.start);
+        let end = count_nl_till_end(content, position.end);
+        Selection::new(start, end, &position.source)
     }
 }
 
 impl Position {
-    pub fn new(start: usize, end: usize) -> Position {
+    pub fn new(start: usize, end: usize, source: &str) -> Position {
         Position {
             start,
             end,
+            source: Rc::from(source)
         }
+    }
+
+    pub fn from_span(span: Span, source: &str) -> Position {
+        Position::new(span.start(), span.end(), source)
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Error {
     pub message: String,
-    pub position: Position,
     // TODO: Backtrace
+    // Just put Vec<Position>
+    pub position: Position,
 }
 
 impl Error {
-    pub fn new(message: &str, position: Position) -> Self {
+    pub fn new(message: &str, position: &Position) -> Self {
         Self {
             message: message.to_string(),
-            position,
+            position: position.clone(),
         }
     }
 }
@@ -104,19 +112,6 @@ pub type ExprResult = Result<Rc<Expr>, Error>;
 impl Into<ExprResult> for Error {
     fn into(self) -> ExprResult {
         Result::Err(self)
-    }
-}
-
-impl<'i> From<Span<'i>> for Position {
-    fn from(span: Span<'i>) -> Self {
-        Position { start: span.start(), end: span.end() }
-    }
-}
-
-impl<'i, R> From<Pair<'i, R>> for Position where R: pest::RuleType {
-    fn from(pair: Pair<'i, R>) -> Self {
-        let span = pair.as_span();
-        Position { start: span.start(), end: span.end() }
     }
 }
 
@@ -163,40 +158,39 @@ impl ToSource for Expr {
 }
 
 impl FromPair for Expr {
-    fn from_pair(pair: Pair<'_, Rule>) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
         let rule = pair.as_rule();
         match rule {
-            Rule::file => parse_file(pair),
-            Rule::constant => Const::from_pair(pair),
-            Rule::let_in => LetIn::from_pair(pair),
-            Rule::ident => Ident::from_pair(pair),
-            Rule::bind => Bind::from_pair(pair),
-            Rule::fun => Fun::from_pair(pair),
-            Rule::list => List::from_pair(pair),
-            Rule::if_then_else => IfThenElse::from_pair(pair),
+            Rule::file => {
+                let pair = pair.into_inner().next().unwrap();
+                Expr::from_pair(pair, source)
+            },
+            Rule::constant => Const::from_pair(pair, source),
+            Rule::let_in => LetIn::from_pair(pair, source),
+            Rule::ident => Ident::from_pair(pair, source),
+            Rule::bind => Bind::from_pair(pair, source),
+            Rule::fun => Fun::from_pair(pair, source),
+            Rule::list => List::from_pair(pair, source),
+            Rule::if_then_else => IfThenElse::from_pair(pair, source),
             _ => {
-                let position: Position = From::from(pair.as_span());
-                Error::new(&format!("Unknown rule `{:?}`", rule), position).into()
+                let position: Position = Position::from_span(pair.as_span(), source);
+                Error::new(&format!("Unknown rule `{:?}`", rule), &position).into()
             }
         }
     }
 }
 
-fn parse_file(pair: Pair<'_, Rule>) -> ExprResult {
-    let pair = pair.into_inner().next().unwrap();
-    Expr::from_pair(pair)
-}
-
-pub fn parse_sane(input: &str) -> ExprResult {
+pub fn parse_file(input: &str, source: &str) -> ExprResult {
     let parsed = SaneParser::parse(Rule::file, input)
-        .expect("Can't sane-core")
+        .expect(&format!("Can't parse {}", source))
         .next()
         .unwrap();
 
-    // let result: Option<pest::iterators::Pair<'_, Rule>> = parsed;
-    // println!("-----------{:?}", parsed);
+    Expr::from_pair(parsed, source)
+}
 
-    Expr::from_pair(parsed)
+pub fn parse_sane(input: &str) -> ExprResult {
+    parse_file(input, "ADHOC")
 }
 
 #[cfg(test)]
@@ -207,13 +201,13 @@ mod tests {
     #[test]
     fn parse_number() {
         let result = &*parse_sane("-23.1").unwrap();
-        assert_eq!(result, &Expr::Const(Const { value: ConstType::Numeric(-23.1), position: Position { start: 0, end: 5 } }));
+        assert_eq!(result, &Expr::Const(Const { value: ConstType::Numeric(-23.1), position: Position::new(0, 5, "ADHOC") } ));
     }
 
     #[test]
     fn parse_string() {
         let result = &*parse_sane("\"test\"").unwrap();
-        assert_eq!(result, &Expr::Const(Const { value: ConstType::String("test".into()), position: Position { start: 1, end: 5 } }));
+        assert_eq!(result, &Expr::Const(Const { value: ConstType::String("test".into()), position: Position::new(1, 5, "ADHOC") }));
     }
 
     #[test]
@@ -241,16 +235,16 @@ mod tests {
     }
 
     #[test]
-    fn from_source_0() {
+    fn from_content_0() {
         let source = "a\nab\nabc\n";
         
-        let result = Selection::from_source(source, Position::new(0, 1));
-        assert_eq!(result, Selection { start: (1, 1), end: (1, 2) });
+        let result = Selection::from_content(source, Position::new(0, 1, "ADHOC"));
+        assert_eq!(result, Selection { start: (1, 1), end: (1, 2), source: Rc::from("ADHOC") });
 
-        let result = Selection::from_source(source, Position::new(2, 3));
-        assert_eq!(result, Selection { start: (2, 1), end: (2, 2) });
+        let result = Selection::from_content(source, Position::new(2, 3, "ADHOC"));
+        assert_eq!(result, Selection { start: (2, 1), end: (2, 2), source: Rc::from("ADHOC") });
 
-        let result = Selection::from_source(source, Position::new(0, 7));
-        assert_eq!(result, Selection { start: (1, 1), end: (3, 3) });
+        let result = Selection::from_content(source, Position::new(0, 7, "ADHOC"));
+        assert_eq!(result, Selection { start: (1, 1), end: (3, 3), source: Rc::from("ADHOC") });
     }
 }

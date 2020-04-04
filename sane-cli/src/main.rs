@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::result::Result;
 
-use sane_core::execute::execute_sane;
+use sane_core::execute;
 use sane_core::parse::{ToSource, Selection};
 
 fn main() {
@@ -24,7 +24,7 @@ fn main() {
     
     
     if let Some(o) = matches.value_of("input_file") {
-        match execute_file(o) {
+        match run(o) {
             Ok(result) => println!("{}", result),
             Err(err) => {
                 eprintln!("{}", err);
@@ -34,17 +34,17 @@ fn main() {
     }
 }
 
-fn execute_file(file_path: &str) -> Result<String, String> {
-    execute_string(&read_content(file_path)?)
+fn run(file_path: &str) -> Result<String, String> {
+    execute_string(&read_content(file_path)?, file_path)
 }
 
-fn execute_string(content: &str) -> Result<String, String> {
-    let result = execute_sane(&content);
+fn execute_string(content: &str, source: &str) -> Result<String, String> {
+    let result = execute::execute_file(&content, source);
     match result {
         Ok(expr) => Ok(expr.to_source()),
         Err(err) => {
-            let selection = Selection::from_source(content, err.position);
-            Err(format!("Error: {} at {}:{}", err.message, selection.start.0, selection.start.1))
+            let selection = Selection::from_content(content, err.position);
+            Err(format!("Error: {} at {}#{}:{}", err.message, selection.source, selection.start.0, selection.start.1))
         }
     }
 }

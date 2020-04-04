@@ -23,17 +23,17 @@ impl ToSource for IfThenElse {
 }
 
 impl FromPair for IfThenElse {
-    fn from_pair(pair: Pair<'_, Rule>) -> ExprResult {
-        let position = pair.as_span().into();
+    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+        let position = Position::from_span(pair.as_span(), source);
         let mut inner: Pairs<'_, Rule> = pair.into_inner();
         let cond = inner.next().unwrap();
         let then = inner.next().unwrap();
         let otherwise = inner.next().unwrap();
 
         Ok(Rc::new(Expr::IfThenElse(IfThenElse {
-            cond: Expr::from_pair(cond)?,
-            then: Expr::from_pair(then)?,
-            otherwise: Expr::from_pair(otherwise)?,
+            cond: Expr::from_pair(cond, source)?,
+            then: Expr::from_pair(then, source)?,
+            otherwise: Expr::from_pair(otherwise, source)?,
             position,
         })))
     }

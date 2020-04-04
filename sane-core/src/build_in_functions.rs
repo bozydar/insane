@@ -7,7 +7,7 @@ use crate::execute::Stack;
 use crate::build_in::{BuildInFun, BuildIn};
 
 pub fn build_in_functions() -> Stack {
-    let position = Position {start: 0, end: 0};
+    let position = Position::new(0, 0, "BUILDIN");
 
     vec![
         create_build_in("head".to_string(), sane_head, 1),
@@ -18,8 +18,8 @@ pub fn build_in_functions() -> Stack {
         create_build_in("concat".to_string(), sane_concat, 2),
         create_build_in("add".to_string(), sane_add, 2),
         create_build_in("print".to_string(), sane_print, 1),
-        ("true".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(true), position}))),
-        ("false".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(false), position}))),
+        ("true".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(true), position: position.clone()}))),
+        ("false".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(false), position: position.clone()}))),
     ]
 }
 
@@ -27,14 +27,14 @@ fn create_build_in(name: String, fun: BuildInFun, arity: usize) -> (String, Rc<E
     (name.to_string(), Rc::new(Expr::BuildIn(BuildIn { fun, name, arity })))
 }
 
-fn sane_head(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+fn sane_head(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("head", params, position, vec!["List"])?;
     match &**params.first().unwrap() {
         Expr::List(List { items, position }) => {
             if let Some(item) = items.first() {
                 Ok(item.clone())
             } else {
-                Error::new("The list is empty", *position).into()
+                Error::new("The list is empty", position).into()
             }
         }
         _ => unreachable!()
@@ -42,19 +42,19 @@ fn sane_head(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
 }
 
 
-fn sane_count(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+fn sane_count(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("head", params, position, vec!["List"])?;
 
     match &**params.first().unwrap() {
         Expr::List(List { items, position }) => {
-            Ok(Rc::new(Expr::Const(Const { value: ConstType::Numeric(items.len() as f64), position: *position })))
+            Ok(Rc::new(Expr::Const(Const { value: ConstType::Numeric(items.len() as f64), position: position.clone() })))
         }
         _ => unreachable!()
     }
 }
 
-fn sane_concat(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
-    let params = validate("head", params, position, vec!["List", "List"])?;
+fn sane_concat(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
+    let params = validate("head", params, &position, vec!["List", "List"])?;
 
     if let (Some(left), Some(right)) = (params.get(0).cloned(), params.get(1).cloned()) {
         let pair = (&*left, &*right);
@@ -63,7 +63,7 @@ fn sane_concat(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
                 let mut left_items = left_items.clone();
                 let mut right_items = right_items.clone();
                 left_items.append(&mut right_items);
-                Ok(Rc::new(Expr::List(List { items: left_items, position })))
+                Ok(Rc::new(Expr::List(List { items: left_items, position: position.clone() })))
             }
             _ => unreachable!()
         }
@@ -72,7 +72,7 @@ fn sane_concat(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
     }
 }
 
-fn sane_tail(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+fn sane_tail(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("tail", params, position, vec!["List"])?;
 
     match &**params.first().unwrap() {
@@ -83,50 +83,50 @@ fn sane_tail(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
                 } else {
                     items[1..].to_vec()
                 };
-            Ok(Rc::new(Expr::List(List { items: new_items, position })))
+            Ok(Rc::new(Expr::List(List { items: new_items, position: position.clone() })))
         }
         _ => unreachable!()
     }
 }
 
 
-fn sane_eq(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+fn sane_eq(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("eq", params, position, vec!["Any", "Any"])?;
 
     if let (Some(left), Some(right)) = (params.get(0), params.get(1)) {
         let left = &*left.clone();
         let right = &*right.clone();
         let value = ConstType::Bool(left.expr_eq(right));
-        Ok(Rc::new(Expr::Const(Const{value, position})))
+        Ok(Rc::new(Expr::Const(Const{value, position: position.clone()})))
     } else {
         unreachable!()
     }
 }
 
-fn sane_add(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+fn sane_add(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("add", params, position, vec!["Numeric", "Numeric"])?;
 
     let left = &*params.get(0).unwrap().clone();
     let right = &*params.get(1).unwrap().clone();
     if let (Expr::Const(Const {value: ConstType::Numeric(left), ..}), Expr::Const(Const {value: ConstType::Numeric(right), ..})) = (left, right) {
-        Ok(Rc::new(Expr::Const(Const{ value: ConstType::Numeric(left + right), position: position})))
+        Ok(Rc::new(Expr::Const(Const{ value: ConstType::Numeric(left + right), position: position.clone()})))
     } else {
         unreachable!()
     }
 }
 
-fn sane_inc(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+fn sane_inc(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("add", params, position, vec!["Numeric"])?;
 
     match &**params.first().unwrap() {
         Expr::Const(Const {value: ConstType::Numeric(num), ..}) => {
-            Ok(Rc::new(Expr::Const(Const{value: ConstType::Numeric(num + 1.0), position})))
+            Ok(Rc::new(Expr::Const(Const{value: ConstType::Numeric(num + 1.0), position: position.clone()})))
         }
         _ => unreachable!()
     }
 }
 
-fn sane_print(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
+fn sane_print(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("eq", params, position, vec!["Any"])?;
 
     let param = params.get(0).unwrap().clone();
@@ -134,7 +134,7 @@ fn sane_print(params: Vec<Rc<Expr>>, position: Position) -> ExprResult {
     Ok(param)
 }
 
-fn validate(name: &str, params: Vec<Rc<Expr>>, position: Position, types: Vec<&str>) -> Result<Vec<Rc<Expr>>, Error> {
+fn validate(name: &str, params: Vec<Rc<Expr>>, position: &Position, types: Vec<&str>) -> Result<Vec<Rc<Expr>>, Error> {
     if params.len() != types.len() {
         return Err(
             Error::new(

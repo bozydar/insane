@@ -20,12 +20,12 @@ impl ToSource for List {
 }
 
 impl FromPair for List {
-    fn from_pair(pair: Pair<'_, Rule>) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
         let mut items: Vec<Rc<Expr>> = vec![];
-        let position = pair.as_span().into();
+        let position = Position::from_span(pair.as_span(), source);
 
         for item in pair.into_inner() {
-            items.push(Expr::from_pair(item)?);
+            items.push(Expr::from_pair(item, source)?);
         }
         Ok(Rc::new(Expr::List(List { items, position })))
     }
@@ -39,7 +39,7 @@ impl Execute for List {
             let item = execute(item.clone(), stack)?;
             result.push(item);
         }
-        Ok(Rc::new(Expr::List(List { items: result, position: self.position })))
+        Ok(Rc::new(Expr::List(List { items: result, position: self.position.clone() })))
     }
 }
 

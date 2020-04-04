@@ -24,13 +24,13 @@ impl ToSource for Bind {
 }
 
 impl FromPair for Bind {
-    fn from_pair(pair: Pair<'_, Rule>) -> ExprResult {
-        let position = pair.as_span().into();
+    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+        let position = Position::from_span(pair.as_span(), source);
         let rule = pair.as_rule();
         let mut inner: Pairs<Rule> = pair.into_inner();
         let mut args = vec![];
         while let Some(next_pair) = inner.next() {
-            args.push(Expr::from_pair(next_pair)?);
+            args.push(Expr::from_pair(next_pair, source)?);
         }
 
         let fun = args
@@ -38,7 +38,7 @@ impl FromPair for Bind {
             .ok_or(
                 Error::new(
                     &format!("Unknown rule `{:?}`", rule),
-                    position,
+                    &position,
                 )
             )?;
 
@@ -48,7 +48,7 @@ impl FromPair for Bind {
 
 impl Execute for Bind {
     fn execute(&self, stack: &mut Stack) -> ExprResult {
-        fn build_curry_or_execute(current_args: Vec<Rc<Expr>>, current_fun: Rc<Expr>, position: Position, stack: &mut Stack) -> ExprResult {
+        fn build_curry_or_execute(current_args: Vec<Rc<Expr>>, current_fun: Rc<Expr>, position: &Position, stack: &mut Stack) -> ExprResult {
             let (arity, name) = match &*current_fun {
                 Expr::Fun(fun) => (fun.params.len(), "__custom__".to_string()),
                 Expr::BuildIn(build_in) => (build_in.arity, build_in.name.clone()),
@@ -77,7 +77,7 @@ impl Execute for Bind {
                     }
                     Expr::BuildIn(build_in) => {
                         let f: BuildInFun = build_in.fun;
-                        f(current_args, position)
+                        f(current_args, &position)
                     }
                     _ => Error::new(&format!("Expr {:?} is not a function", current_fun), position).into()
                 };
@@ -90,7 +90,7 @@ impl Execute for Bind {
 
             let params_as_idents = &mut params.iter()
                 .map(|param| {
-                    Rc::new(Expr::Ident(Ident { label: param.clone(), position }))
+                    Rc::new(Expr::Ident(Ident { label: param.clone(), position: position.clone() }))
                 })
                 .collect::<Vec<Rc<Expr>>>();
             let mut params_to_bind = current_args;
@@ -101,7 +101,7 @@ impl Execute for Bind {
                     Bind {
                         args: params_to_bind,
                         fun: current_fun,
-                        position,
+                        position: position.clone(),
                     }
                 )
             );
@@ -113,7 +113,7 @@ impl Execute for Bind {
                         params,
                         body,
                         env: Rc::new(RefCell::new(stack.clone())),
-                        position,
+                        position: position.clone(),
                     }))
             )
         }
@@ -125,7 +125,7 @@ impl Execute for Bind {
         }
         // println!("{:?}", fun.clone());
         let fun = execute(self.fun.clone(), stack)?;
-        build_curry_or_execute(arg_results, fun, self.position, stack)
+        build_curry_or_execute(arg_results, fun, &self.position, stack)
     }
 }
 
@@ -199,7 +199,7 @@ mod tests {
                in let flop = fun b =>
                  app b to flip
                in app 0 to flip"#);
-        assert_eq!(result, Err(Error::new("Ident `flop` not found", Position::new(95, 99))));
+        assert_eq!(result, Err(Error::new("Ident `flop` not found", &Position::new(95, 99, "ADHOC"))));
     }
 
     #[test]

@@ -18,8 +18,9 @@ impl ToSource for Ident {
 
 
 impl FromPair for Ident {
-    fn from_pair(pair: Pair<'_, Rule>) -> ExprResult {
-        Ok(Rc::new(Expr::Ident(Ident { label: pair.as_str().to_string(), position: pair.as_span().into() })))
+    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+        let position = Position::from_span(pair.as_span(), source);
+        Ok(Rc::new(Expr::Ident(Ident { label: pair.as_str().to_string(), position })))
     }
 }
 
@@ -29,7 +30,7 @@ impl Execute for Ident {
             Ok(expr.clone())
         } else {
             // Err(format!("Ident `{}` not found: {}", ident, stack_to_string(stack)))
-            Error::new(&format!("Ident `{}` not found", self.label), self.position).into()
+            Error::new(&format!("Ident `{}` not found", self.label), &self.position).into()
         }
     }
 }

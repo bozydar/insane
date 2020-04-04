@@ -59,10 +59,10 @@ impl ToSource for Const {
 }
 
 impl FromPair for Const {
-    fn from_pair(pair: Pair<'_, Rule>) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
         let pair = pair.into_inner().next().unwrap();
         let rule = pair.as_rule();
-        let position: Position = From::from(pair.as_span());
+        let position: Position = Position::from_span(pair.as_span(), source);
         match rule {
             Rule::string => {
                 Ok(Rc::new(Expr::Const(Const::string(pair.as_str(), position))))
@@ -72,8 +72,8 @@ impl FromPair for Const {
                 Ok(Rc::new(Expr::Const(Const::numeric(value, position))))
             }
             _ => {
-                let position: Position = From::from(pair.as_span());
-                Error::new(&format!("Unknown const type `{:?}`", rule), position).into()
+                let position: Position = Position::from_span(pair.as_span(), source);
+                Error::new(&format!("Unknown const type `{:?}`", rule), &position).into()
             }
         }
     }

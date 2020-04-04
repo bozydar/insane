@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, ExprResult, parse_sane, ToSource};
+use crate::parse::{Expr, ExprResult, parse_sane, parse_file, ToSource};
 
 use std::cell::RefCell;
 use crate::build_in_functions::build_in_functions;
@@ -12,6 +12,14 @@ pub type Stack = Vec<(String, Rc<Expr>)>;
 
 pub fn execute_sane(input: &str) -> ExprResult {
     let expr = parse_sane(input)?;
+    let stack = &mut build_in_functions();
+    // println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
+    let result = execute(expr, stack)?;
+    Ok(result)
+}
+
+pub fn execute_file(input: &str, source: &str) -> ExprResult {
+    let expr = parse_file(input, source)?;
     let stack = &mut build_in_functions();
     // println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
     let result = execute(expr, stack)?;

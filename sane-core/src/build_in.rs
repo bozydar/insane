@@ -6,7 +6,7 @@ use std::fmt;
 
 
 
-pub type BuildInFun = fn(Vec<Rc<Expr>>, Position) -> ExprResult;
+pub type BuildInFun = fn(Vec<Rc<Expr>>, &Position) -> ExprResult;
 
 #[derive(Clone)]
 pub struct BuildIn {
