@@ -1,5 +1,6 @@
 use pest::Span;
 use pest::iterators::Pair;
+use pest::error::InputLocation;
 use std::rc::Rc;
 
 
@@ -158,12 +159,23 @@ impl FromPair for Expr {
 }
 
 pub fn parse_file(input: &str, source: &str) -> ExprResult {
-    let parsed = SaneParser::parse(Rule::file, input)
-        .unwrap_or_else(|_| panic!("Can't parse {}", source))
-        .next()
-        .unwrap();
-
-    Expr::from_pair(parsed, source)
+    let parse_result = SaneParser::parse(Rule::file, input);
+    match parse_result {
+        Ok(mut pairs) => {
+            if let Some(pair) = pairs.next() {
+                Expr::from_pair(pair, source)
+            } else {
+                Err(Error::new("Cant't find any expression", &Position::new(1, 1, source)))
+            }
+        },
+        Err(err) => {
+            let position = match err.location {
+                InputLocation::Pos(pos) => Position::new(pos, pos, source),
+                InputLocation::Span(span) => Position::new(span.0, span.1, source),
+            };
+            Err(Error::new(&format!("Can't parse: {}", err), &position))
+        }
+    }
 }
 
 pub fn parse_sane(input: &str) -> ExprResult {

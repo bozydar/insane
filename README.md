@@ -17,6 +17,8 @@
   ```
 * Clone only when needed - DONE
 * Add line information to Err - DONE
+* Add line/column information on the parse level
+* Show parsing errors in a sane way - DONE (showing pest error but doesn't matter for now)
 * REPL
 * zero-arity functions 
 * modules/namespaces
