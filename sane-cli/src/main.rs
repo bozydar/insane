@@ -1,5 +1,6 @@
 extern crate sane_core;
 extern crate clap;
+extern crate rustyline;
 
 use clap::{Arg, App};
 use std::fs::File;
@@ -8,6 +9,9 @@ use std::result::Result;
 
 use sane_core::execute;
 use sane_core::parse::{ToSource, Selection, Position};
+use sane_core::build_in_functions::build_in_functions;
+
+mod interactive;
 
 fn main() {
     let matches = App::new("sane programming language")
@@ -20,10 +24,16 @@ fn main() {
             .takes_value(true)
             .help("File to interpret")
         )
+        .arg(
+            Arg::with_name("interactive")
+            .short('i')
+            .help("starts REPL")
+        )
         .get_matches();
     
-    
-    if let Some(o) = matches.value_of("input_file") {
+    if matches.is_present("interactive") {
+        crate::interactive::main_loop();
+    } else if let Some(o) = matches.value_of("input_file") {
         match run(o) {
             Ok(result) => println!("{}", result),
             Err(err) => {
@@ -35,11 +45,12 @@ fn main() {
 }
 
 fn run(file_path: &str) -> Result<String, String> {
-    execute_string(&read_content(file_path)?, file_path)
+    let stack = &mut build_in_functions();
+    execute_string(&read_content(file_path)?, file_path, stack)
 }
 
-fn execute_string(content: &str, source: &str) -> Result<String, String> {
-    let result = execute::execute_file(&content, source);
+pub fn execute_string(content: &str, source: &str, stack: &mut execute::Stack) -> Result<String, String> {
+    let result = execute::execute_file(&content, source, stack);
     match result {
         Ok(expr) => Ok(expr.to_source()),
         Err(err) => {
@@ -52,8 +63,8 @@ fn execute_string(content: &str, source: &str) -> Result<String, String> {
                     })
                     .collect::<Vec<String>>()
                     .join("\n");
-                Err(format!("Error: {} at {}:{}:{}\n{}", err.message, selection.source, selection.start.0, 
-                selection.start.1, backtrace))
+                Err(format!("{}\nError: {} at {}:{}:{}", backtrace, err.message, selection.source, selection.start.0, 
+                selection.start.1))
             } else {
                 Err(format!("Error: {}", err.message))
             }

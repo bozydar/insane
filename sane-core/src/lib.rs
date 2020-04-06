@@ -13,4 +13,4 @@ mod list;
 mod if_then_else;
 mod build_in;
 pub mod execute;
-mod build_in_functions;
+pub mod build_in_functions;

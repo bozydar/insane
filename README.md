@@ -17,9 +17,19 @@
   ```
 * Clone only when needed - DONE
 * Add line information to Err - DONE
-* Add line/column information on the parse level
+
 * Show parsing errors in a sane way - DONE (showing pest error but doesn't matter for now)
+* Add line/column information on the parse level 
+  * Looks like what pest have to offer is rather internal and line/column
+    is not accessible from Pair directly but `pest-2.1.2/src/position.rs:135` looks promising as copy/paste
 * REPL
+  * hash to enter a command:
+    * #help - show shortcuts of editor
+    * #edit - open editor and then execute the code
+    * #reset-scope - clean scope
+    * #show-scope - list all the declared identifiers
+  * other text goes to executer BUT the scope ramains
+  * "end" finishes "multiline" readline mode
 * zero-arity functions 
 * modules/namespaces
   * Rule::file returns many Expr which are added to the stack

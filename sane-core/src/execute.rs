@@ -16,9 +16,8 @@ pub fn execute_sane(input: &str) -> ExprResult {
     execute(expr, stack)
 }
 
-pub fn execute_file(input: &str, source: &str) -> ExprResult {
+pub fn execute_file(input: &str, source: &str, stack: &mut Stack) -> ExprResult {
     let expr = parse_file(input, source)?;
-    let stack = &mut build_in_functions();
     // println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
     let result = execute(expr, stack)?;
     Ok(result)
