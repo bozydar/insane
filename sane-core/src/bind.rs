@@ -171,7 +171,7 @@ mod tests {
                    app 2 to curr"#).unwrap().to_source();
         assert_eq!(result, "false");
     }
-
+    
     #[test]
     fn test_recursive_0() {
         let result = execute_sane(

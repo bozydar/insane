@@ -30,6 +30,9 @@
     * #show-scope - list all the declared identifiers
   * other text goes to executer BUT the scope ramains
   * "end" finishes "multiline" readline mode
+* left side application
+  * automatic function composition is not possible without types because it is
+    hard to determine if function is an argument or it should be autoapplied.
 * zero-arity functions 
 * modules/namespaces
   * Rule::file returns many Expr which are added to the stack

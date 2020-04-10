@@ -1,10 +1,11 @@
 use pest::Span;
 use pest::iterators::Pair;
 use pest::error::InputLocation;
+use pest::prec_climber::{Assoc, Operator, PrecClimber};
 use std::rc::Rc;
-
-
 use std::fmt::{Debug};
+use lazy_static;
+
 use crate::error::Error;
 use crate::let_in::LetIn;
 use crate::ident::Ident;
@@ -15,6 +16,7 @@ use crate::list::List;
 use crate::pest::Parser;
 use crate::if_then_else::IfThenElse;
 use crate::build_in::BuildIn;
+use crate::binary::Binary;
 
 pub trait ToSource {
     fn to_source(&self) -> String;
@@ -106,6 +108,7 @@ pub enum Expr {
     Fun(Fun),
     List(List),
     IfThenElse(IfThenElse),
+    Binary(Binary),
     BuildIn(BuildIn),
 }
 
@@ -130,6 +133,7 @@ impl ToSource for Expr {
             Expr::List(list) => list.to_source(),
             Expr::IfThenElse(if_then_else) => if_then_else.to_source(),
             Expr::Fun(fun) => fun.to_source(),
+            Expr::Binary(binary) => binary.to_source(),
             _ => format!("{:?}", self)
         }
     }
@@ -143,6 +147,7 @@ impl FromPair for Expr {
                 let pair = pair.into_inner().next().unwrap();
                 Expr::from_pair(pair, source)
             },
+            Rule::infix => climb(pair, source),
             Rule::constant => Const::from_pair(pair, source),
             Rule::let_in => LetIn::from_pair(pair, source),
             Rule::ident => Ident::from_pair(pair, source),
@@ -180,6 +185,32 @@ pub fn parse_file(input: &str, source: &str) -> ExprResult {
 
 pub fn parse_sane(input: &str) -> ExprResult {
     parse_file(input, "ADHOC")
+}
+
+fn precedence_climber() -> PrecClimber<Rule> {
+    PrecClimber::new(vec![
+        Operator::new(Rule::op_left_pipe, Assoc::Left),
+        Operator::new(Rule::op_dollar, Assoc::Right),
+    ])
+}
+
+lazy_static! {
+    pub static ref PREC_CLIMBER: PrecClimber<Rule> = precedence_climber();
+}
+
+pub fn climb(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    let mut a = pair.clone().into_inner();
+    a.next();
+    dbg!(a.peekable().peek().is_some());
+    let primary = |pair| {
+        Expr::from_pair(pair, source)
+    };
+
+    let build_binary = |lhs, op, rhs| {
+        Binary::new(op, lhs, rhs, source)
+    };
+
+    PREC_CLIMBER.climb(pair.into_inner(), primary, build_binary)
 }
 
 #[cfg(test)]
