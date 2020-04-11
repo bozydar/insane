@@ -38,6 +38,9 @@ pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Stack) -> ExprResult {
             Expr::Bind(bind) => {
                 (Some(bind.position.clone()), bind.execute(stack))
             }
+            Expr::Binary(binary) => {
+                (Some(binary.position.clone()), binary.execute(stack))
+            }
             Expr::IfThenElse(if_then_else) => {
                 (Some(if_then_else.position.clone()), if_then_else.execute(stack))
             }

@@ -189,7 +189,7 @@ pub fn parse_sane(input: &str) -> ExprResult {
 
 fn precedence_climber() -> PrecClimber<Rule> {
     PrecClimber::new(vec![
-        Operator::new(Rule::op_left_pipe, Assoc::Left),
+        Operator::new(Rule::op_left_pipe, Assoc::Left) | Operator::new(Rule::op_right_pipe, Assoc::Right),
         Operator::new(Rule::op_dollar, Assoc::Right),
     ])
 }
@@ -199,9 +199,6 @@ lazy_static! {
 }
 
 pub fn climb(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
-    let mut a = pair.clone().into_inner();
-    a.next();
-    dbg!(a.peekable().peek().is_some());
     let primary = |pair| {
         Expr::from_pair(pair, source)
     };
@@ -244,8 +241,8 @@ mod tests {
 
     #[test]
     fn parse_bind_1() {
-        let result = parse_sane("app 2 to app 1 to f").unwrap().to_source();
-        assert_eq!(result, "app 2.0 to app 1.0 to f");
+        let result = parse_sane("(f(1))(2)").unwrap().to_source();
+        assert_eq!(result, "(f(1.0))(2.0)");
     }
 
     #[test]

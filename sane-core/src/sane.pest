@@ -24,11 +24,12 @@ let_in = { "let" ~ ident_expr ~ ("and" ~ "let" ~ ident_expr)*  ~ "in" ~ expr }
 ident_expr = { ident ~ "=" ~ expr }
 fun = { "fun" ~ args ~ "=>" ~ expr }
 args = { ident+ }
-bind = { "app" ~ expr ~ ("," ~ expr)* ~ "to" ~ expr }
+bind = { term ~ "(" ~ expr+ ~ ")" }
 
 infix = { term ~ (operator ~ term)+ }
-operator = _{ op_left_pipe | op_dollar }
+operator = _{ op_left_pipe | op_right_pipe | op_dollar }
 op_left_pipe = { "|>" }
+op_right_pipe = { "<|" }
 op_dollar = { "$" }
 
 list = { "[" ~ expr? ~ (";" ~ expr)* ~ "]" }
@@ -36,7 +37,7 @@ structure = { "{" ~ field_value? ~ (";" ~ field_value)* ~ "}" }
 field_value = { ident ~ ":" ~ expr }
 if_then_else = { "if" ~ expr ~ "then" ~ expr ~ "else" ~ expr }
 
-expr = _{ let_in | fun | bind | if_then_else | infix | term }
+expr = _{ infix | let_in | fun | bind | if_then_else |  term }
 term = _{  "(" ~ expr ~ ")" | structure | list | ident | constant }
 constant = { number | string_quoted }
 file = { SOI ~ expr ~ EOI }

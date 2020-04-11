@@ -17,31 +17,37 @@ pub struct Bind {
 
 impl ToSource for Bind {
     fn to_source(&self) -> String {
-        format!("app {} to {}", self.args.iter()
-            .map(|arg| arg.to_source())
-            .collect::<Vec<String>>()
-            .join(", "), self.fun.to_source())
+        match &*self.fun {
+            Expr::Ident(_) => {
+                format!("{}({})", self.fun.to_source(), 
+                self.args.iter()
+                    .map(|arg| arg.to_source())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+                )
+            },
+            _ => {
+                format!("({})({})", self.fun.to_source(), 
+                self.args.iter()
+                    .map(|arg| arg.to_source())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+                )
+            },
+        }
     }
 }
 
 impl FromPair for Bind {
     fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+        // TODO the order has changed
         let position = Position::from_span(pair.as_span(), source);
-        let rule = pair.as_rule();
         let mut inner: Pairs<Rule> = pair.into_inner();
+        let fun = Expr::from_pair(inner.next().unwrap(), source)?;
         let mut args = vec![];
         for next_pair in inner {
             args.push(Expr::from_pair(next_pair, source)?);
         }
-
-        let fun = args
-            .pop()
-            .ok_or(
-                Error::new(
-                    &format!("Unknown rule `{:?}`", rule),
-                    &position,
-                )
-            )?;
 
         Ok(Rc::new(Expr::Bind(Bind { args, fun, position })))
     }
@@ -56,7 +62,7 @@ impl Execute for Bind {
                 _ => {
                     // println!("{:?}", stack);
                     unreachable!("{:?}", current_fun)
-                }
+                },
             };
             if current_args.len() > arity {
                 return Error::new(
@@ -137,26 +143,27 @@ mod tests {
 
     #[test]
     fn test_execute_bind_0() {
-        let result = &*execute_sane("app 2 to (fun a => a)").unwrap().to_source();
+        let result = &*execute_sane("(fun a => a)(2)").unwrap().to_source();
         assert_eq!(result, "2.0");
     }
 
     #[test]
     fn test_execute_bind_1() {
-        let result = &*execute_sane("let f = fun a => a in app  2 to f").unwrap().to_source();
+        let result = &*execute_sane("let f = fun a => a in f(2)").unwrap().to_source();
         assert_eq!(result, "2.0");
     }
 
     #[test]
     fn test_execute_bind_2() {
-        let result = &*execute_sane("let f = fun a => fun b => a in app 1 to app 2 to f").unwrap().to_source();
+        // TODO if we tread parenthesis as another operator it will possible to: f (2) (1)
+        let result = &*execute_sane("let f = fun a => fun b => a in (f(2))(1)").unwrap().to_source();
         assert_eq!(result, "2.0");
     }
 
     #[test]
     fn test_execute_bind_3() {
-        let result = &*execute_sane("let f = fun a => fun b => b in app 1 to app 2 to f").unwrap().to_source();
-        assert_eq!(result, "1.0");
+        let result = &*execute_sane("let f = fun a b => [a; b] in f(1 2)").unwrap().to_source();
+        assert_eq!(result, "[1.0; 2.0]");
     }
 
     #[test]
@@ -164,11 +171,11 @@ mod tests {
         let result = &*execute_sane(
             r#"let c = fun a =>
                  fun b =>
-                   app a, b to eq
+                   eq(a b)
                in
-                 let curr = app 1 to c
+                 let curr = c(1)
                  in
-                   app 2 to curr"#).unwrap().to_source();
+                   curr(2)"#).unwrap().to_source();
         assert_eq!(result, "false");
     }
     
@@ -176,8 +183,8 @@ mod tests {
     fn test_recursive_0() {
         let result = execute_sane(
             r#"let add_till_10 = fun a =>
-                 if app a, 10.0 to eq then a else app (app a to inc) to add_till_10
-               in app 0 to add_till_10"#).unwrap().to_source();
+                 if eq(a 10.0) then a else add_till_10(inc(a))
+               in add_till_10(0)"#).unwrap().to_source();
         assert_eq!(result, "10.0");
     }
 
@@ -185,10 +192,10 @@ mod tests {
     fn test_recursive_1() {
         let result = execute_sane(
             r#"let flip = fun a =>
-                 if (app a, 10.0 to eq) then a else (app (app a to inc) to flop)
+                 if eq(a 10) then a else flop(inc(a))
                and let flop = fun b =>
-                 app b to flip
-               in app 0 to flip"#).unwrap().to_source();
+                 flip(b)
+               in flip(0)"#).unwrap().to_source(); 
         assert_eq!(result, "10.0");
     }
 
@@ -196,20 +203,19 @@ mod tests {
     fn test_recursive_2() {
         let result = execute_sane(
             r#"let flip = fun a =>
-                 if (app a, 10.0 to eq) then a else (app (app a to inc) to flop)
+                 if eq(a 10) then a else flop(inc(a))
                in let flop = fun b =>
-                 app b to flip
-               in app 0 to flip"#);
+                 flip(b)
+               in flip(0)"#);
         assert_eq!(result, Err(Error { message: "Ident `flop` not found".to_string(), 
             backtrace: vec![
-                Position { start: 95, end: 99, source: Rc::from("ADHOC") }, 
-                Position { start: 95, end: 99, source: Rc::from("ADHOC") }, 
-                Position { start: 73, end: 99, source: Rc::from("ADHOC") }, 
-                Position { start: 37, end: 100, source: Rc::from("ADHOC") }, 
-                Position { start: 188, end: 201, source: Rc::from("ADHOC") }, 
-                Position { start: 188, end: 201, source: Rc::from("ADHOC") }, 
-                Position { start: 119, end: 201, source: Rc::from("ADHOC") }
-            ]
+                Position { start: 61, end: 65, source: Rc::from("ADHOC") }, 
+                Position { start: 61, end: 65, source: Rc::from("ADHOC") }, 
+                Position { start: 61, end: 73, source: Rc::from("ADHOC") }, 
+                Position { start: 37, end: 73, source: Rc::from("ADHOC") }, 
+                Position { start: 155, end: 162, source: Rc::from("ADHOC") }, 
+                Position { start: 155, end: 162, source: Rc::from("ADHOC") }, 
+                Position { start: 92, end: 162, source: Rc::from("ADHOC") }]
         }));
     }
 
@@ -217,25 +223,25 @@ mod tests {
     fn test_auto_curr_1() {
         let result = execute_sane(
             r#"let f = fun a b c => a
-               in app 1 to f"#).unwrap().to_source();
-        assert_eq!(result, "fun $param_0 $param_1 => app 1.0, $param_0, $param_1 to fun a b c => a");
+               in f(1)"#).unwrap().to_source();
+        assert_eq!(result, "fun $param_0 $param_1 => (fun a b c => a)(1.0 $param_0 $param_1)");
     }
 
     #[test]
     fn test_auto_curr_2() {
         let result = execute_sane(
             r#"let f = fun a b c => [a; b; c]
-               in let g = app 1 to f
-               in app 2, 3 to g"#).unwrap().to_source();
+               in let g = f(1)
+               in g(2 3)"#).unwrap().to_source();
         assert_eq!(result, "[1.0; 2.0; 3.0]");
     }
 
     #[test]
     fn test_auto_curr_3() {
         let result = execute_sane(
-            r#"let f = fun a b => app a, b to add in
-               let my_inc = app 1 to f in
-               app 2 to my_inc"#).unwrap().to_source();
+            r#"let f = fun a b => add(a b) in
+               let my_inc = f(1) in
+               my_inc(2)"#).unwrap().to_source();
         assert_eq!(result, "3.0");
     }
 
@@ -243,16 +249,16 @@ mod tests {
     fn test_auto_curr_4() {
         let result = execute_sane(
             r#"let f = add in
-               let my_inc = app 1 to f in
-               app 2 to my_inc"#).unwrap().to_source();
+               let my_inc = f(1) in
+               my_inc(2)"#).unwrap().to_source();
         assert_eq!(result, "3.0");
     }
 
     #[test]
     fn test_auto_curr_5() {
         let result = execute_sane(
-            r#"let my_inc = app 1 to add in
-               app 2 to my_inc"#).unwrap().to_source();
+            r#"let my_inc = add(1) in
+               my_inc(2)"#).unwrap().to_source();
         assert_eq!(result, "3.0");
     }
 }

@@ -42,7 +42,6 @@ fn sane_head(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     }
 }
 
-
 fn sane_count(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("head", params, position, vec!["List"])?;
 
@@ -242,58 +241,47 @@ fn validate(name: &str, params: Vec<Rc<Expr>>, position: &Position, types: Vec<&
 mod tests {
     use crate::execute::execute_sane;
     use crate::parse::ToSource;
+    use crate::parse::parse_sane;
 
     #[test]
     fn test_execute_head_1() {
-        let result = &*execute_sane("app [1] to  head").unwrap().to_source();
-        assert_eq!(result, "1.0");
-    }
-
-    #[test]
-    fn test_execute_head_2() {
-        let result = &*execute_sane("app [1] to  head").unwrap().to_source();
+        let result = &*execute_sane("[1] |>  head").unwrap().to_source();
         assert_eq!(result, "1.0");
     }
 
     #[test]
     fn test_execute_tail_0() {
-        let result = &*execute_sane("app [] to tail").unwrap().to_source();
+        let result = &*execute_sane("[] |> tail").unwrap().to_source();
         assert_eq!(result, "[]");
     }
 
     #[test]
     fn test_execute_tail_1() {
-        let result = &*execute_sane("app [1] to tail").unwrap().to_source();
+        let result = &*execute_sane("[1] |> tail").unwrap().to_source();
         assert_eq!(result, "[]");
     }
 
     #[test]
     fn test_execute_tail_2() {
-        let result = &*execute_sane("app [1;2] to tail").unwrap().to_source();
+        let result = &*execute_sane("[1;2] |> tail").unwrap().to_source();
         assert_eq!(result, "[2.0]");
     }
 
     #[test]
     fn test_execute_eq_0() {
-        let result = &*execute_sane("app 1, 1 to eq").unwrap().to_source();
+        let result = &*execute_sane("eq(1 1)").unwrap().to_source();
         assert_eq!(result, "true");
     }
 
     #[test]
     fn test_execute_eq_1() {
-        let result = &*execute_sane("app fun a => b, fun a => b to eq").unwrap().to_source();
-        assert_eq!(result, "false");
-    }
-
-    #[test]
-    fn test_execute_eq_2() {
-        let result = &*execute_sane("app fun a => b, fun a => c to eq").unwrap().to_source();
+        let result = &*execute_sane("eq(fun a => b fun a => b)").unwrap().to_source();
         assert_eq!(result, "false");
     }
 
     #[test]
     fn test_execute_eq_3() {
-        let result = &*execute_sane("app [], [] to eq").unwrap().to_source();
+        let result = &*execute_sane("eq([] [])").unwrap().to_source();
         assert_eq!(result, "true");
     }
 
@@ -302,7 +290,7 @@ mod tests {
         let result = &*execute_sane(
             r#"let a = fun b => b in
                let c = fun d => d in
-                 app app 1 to c, app 1 to a to eq"#).unwrap().to_source(); // eq(c(1), a(1))
+                 1 |> a |> eq <| c <| 1"#).unwrap().to_source(); // eq(c(1), a(1))
         assert_eq!(result, "true");
     }
 
@@ -311,9 +299,9 @@ mod tests {
         let result = &*execute_sane(
             r#"let eqa = fun left =>
                   let eqa_ = fun right =>
-                    app left, right to eq
+                    eq(left right)
                   in eqa_
-               in app 1 to app 1 to eqa"#).unwrap().to_source();
+               in 1 |> eqa <| 1"#).unwrap().to_source();
         assert_eq!(result, "true");
     }
 
@@ -321,7 +309,7 @@ mod tests {
     fn test_execute_inc_0() {
         let result = execute_sane(
             r#"let a = 1 in
-                 app a to inc"#).unwrap().to_source();
+                 inc(a)"#).unwrap().to_source();
         assert_eq!(result, "2.0");
     }
 
@@ -329,14 +317,14 @@ mod tests {
     #[test]
     fn test_count_0() {
         let result = execute_sane(
-            r#"app [] to count"#).unwrap().to_source();
+            r#"[] |> count"#).unwrap().to_source();
         assert_eq!(result, "0.0");
     }
 
     #[test]
     fn test_count_1() {
         let result = execute_sane(
-            r#"app [1] to count"#).unwrap().to_source();
+            r#"[1] |> count"#).unwrap().to_source();
         assert_eq!(result, "1.0");
     }
 
@@ -344,7 +332,7 @@ mod tests {
     #[test]
     fn test_concat_0() {
         let result = execute_sane(
-            r#"app [1], [2] to concat"#).unwrap().to_source();
+            r#"concat([1] [2])"#).unwrap().to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 }
