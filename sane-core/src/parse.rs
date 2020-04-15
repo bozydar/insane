@@ -17,6 +17,7 @@ use crate::pest::Parser;
 use crate::if_then_else::IfThenElse;
 use crate::build_in::BuildIn;
 use crate::binary::Binary;
+use crate::file::{File, NSpace, Def};
 
 pub trait ToSource {
     fn to_source(&self) -> String;
@@ -110,6 +111,10 @@ pub enum Expr {
     IfThenElse(IfThenElse),
     Binary(Binary),
     BuildIn(BuildIn),
+    // These are rather statesments and not 1st class citizens
+    File(File),
+    NSpace(NSpace),
+    Def(Def),
 }
 
 impl ExprEq for Expr {
@@ -134,6 +139,9 @@ impl ToSource for Expr {
             Expr::IfThenElse(if_then_else) => if_then_else.to_source(),
             Expr::Fun(fun) => fun.to_source(),
             Expr::Binary(binary) => binary.to_source(),
+            Expr::File(file) => file.to_source(),
+            Expr::NSpace(n_space) => n_space.to_source(),
+            Expr::Def(def) => def.to_source(),
             _ => format!("{:?}", self)
         }
     }
@@ -143,10 +151,7 @@ impl FromPair for Expr {
     fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
         let rule = pair.as_rule();
         match rule {
-            Rule::file => {
-                let pair = pair.into_inner().next().unwrap();
-                Expr::from_pair(pair, source)
-            },
+            Rule::file => File::from_pair(pair, source),
             Rule::infix => climb(pair, source),
             Rule::constant => Const::from_pair(pair, source),
             Rule::let_in => LetIn::from_pair(pair, source),
@@ -154,6 +159,8 @@ impl FromPair for Expr {
             Rule::bind => Bind::from_pair(pair, source),
             Rule::fun => Fun::from_pair(pair, source),
             Rule::list => List::from_pair(pair, source),
+            // TODO Should be fixed when nspaces implemented
+            Rule::nspaced_ident => Ident::from_pair(pair, source),
             Rule::if_then_else => IfThenElse::from_pair(pair, source),
             _ => {
                 let position: Position = Position::from_span(pair.as_span(), source);
@@ -248,6 +255,17 @@ mod tests {
     #[test]
     fn parse_fun() {
         let result = &*parse_sane("fun a => a").unwrap().to_source();
+        assert_eq!(result, "fun a => a");
+    }
+
+    #[test]
+    fn parse_file_0() {
+        let result = &*parse_sane(r#"
+        nspace A = a
+          
+        def a = fun b => a
+          
+        1 |> A.a  "#).unwrap().to_source();
         assert_eq!(result, "fun a => a");
     }
 

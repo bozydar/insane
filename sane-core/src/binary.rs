@@ -1,11 +1,7 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
-use crate::error::Error;
-use crate::execute::{Stack, Execute, execute};
-use pest::iterators::{Pair, Pairs};
-use crate::fun::Fun;
-use std::cell::RefCell;
-use crate::build_in::BuildInFun;
+use crate::parse::{Expr, Position, ExprResult, ToSource, Rule};
+use crate::execute::{Stack, Execute};
+use pest::iterators::{Pair};
 use crate::ident::Ident;
 use crate::bind::Bind;
 

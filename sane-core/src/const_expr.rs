@@ -8,6 +8,7 @@ pub enum ConstType {
     String(String),
     Numeric(f64),
     Bool(bool),
+    Unit
 }
                                             
 #[derive(Debug, Clone)]
@@ -55,6 +56,7 @@ impl ToSource for Const {
             } else {
                 "false".to_string()
             }
+            ConstType::Unit => "()".to_string()
         }
     }
 }

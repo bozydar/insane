@@ -241,7 +241,6 @@ fn validate(name: &str, params: Vec<Rc<Expr>>, position: &Position, types: Vec<&
 mod tests {
     use crate::execute::execute_sane;
     use crate::parse::ToSource;
-    use crate::parse::parse_sane;
 
     #[test]
     fn test_execute_head_1() {

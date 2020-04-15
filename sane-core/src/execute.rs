@@ -29,6 +29,9 @@ pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Stack) -> ExprResult {
     // println!("Stack: {}", stack_to_string(stack));
     let pre_result = 
         match &*expr {
+            Expr::File(file) => {
+                (Some(file.position.clone()), file.execute(stack))
+            }
             Expr::LetIn(let_in) => {
                 (Some(let_in.position.clone()), let_in.execute(stack))
             }

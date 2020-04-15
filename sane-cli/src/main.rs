@@ -8,7 +8,7 @@ use std::io::prelude::*;
 use std::result::Result;
 
 use sane_core::execute;
-use sane_core::parse::{ToSource, Selection, Position};
+use sane_core::parse::{ToSource, Selection};
 use sane_core::build_in_functions::build_in_functions;
 
 mod interactive;
@@ -32,7 +32,7 @@ fn main() {
         .get_matches();
     
     if matches.is_present("interactive") {
-        crate::interactive::main_loop();
+        let _ = crate::interactive::main_loop();
     } else if let Some(o) = matches.value_of("input_file") {
         match run(o) {
             Ok(result) => println!("{}", result),

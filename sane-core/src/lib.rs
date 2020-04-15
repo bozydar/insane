@@ -4,8 +4,11 @@ extern crate pest_derive;
 #[macro_use]
 extern crate lazy_static;
 
-mod error;
 pub mod parse;
+pub mod execute;
+pub mod build_in_functions;
+
+mod error;
 mod let_in;
 mod ident;
 mod const_expr;
@@ -15,5 +18,4 @@ mod list;
 mod if_then_else;
 mod build_in;
 mod binary;
-pub mod execute;
-pub mod build_in_functions;
+mod file;

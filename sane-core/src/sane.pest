@@ -18,7 +18,8 @@ char = _{
     | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
 
-ident = @{ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )*  }
+nspaced_ident = @{ ident ~ (WHITESPACE* ~ "." ~ WHITESPACE* ~ ident)* }
+ident = @{  (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )* }
 
 let_in = { "let" ~ ident_expr ~ ("and" ~ "let" ~ ident_expr)*  ~ "in" ~ expr }
 ident_expr = { ident ~ "=" ~ expr }
@@ -38,6 +39,17 @@ field_value = { ident ~ ":" ~ expr }
 if_then_else = { "if" ~ expr ~ "then" ~ expr ~ "else" ~ expr }
 
 expr = _{ infix | let_in | fun | bind | if_then_else |  term }
-term = _{  "(" ~ expr ~ ")" | structure | list | ident | constant }
+term = _{  "(" ~ expr ~ ")" | structure | list | nspaced_ident | constant }
 constant = { number | string_quoted }
-file = { SOI ~ expr ~ EOI }
+file = { SOI ~ uses ~ expression ~ nspace ~ EOI }
+
+nspace = { ("nspace" ~ ident ~ exposed ~ defs)? }
+exposed = { ("give" ~ ident+)? }
+uses = { ("use" ~ ident+)? }
+defs = { def* }
+def = { "def" ~ ident_expr ~ ("and" ~ ident_expr)* }
+expression = { expr? }
+
+keywords = {
+  "let" | "fun" | "def" | "and" | "nspace" | "use"  | "gives"
+}
