@@ -220,19 +220,6 @@ pub fn climb(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::const_expr::ConstType;
-
-    #[test]
-    fn parse_number() {
-        let result = &*parse_sane("-23.1").unwrap();
-        assert_eq!(result, &Expr::Const(Const { value: ConstType::Numeric(-23.1), position: Position::new(0, 5, "ADHOC") } ));
-    }
-
-    #[test]
-    fn parse_string() {
-        let result = &*parse_sane("\"test\"").unwrap();
-        assert_eq!(result, &Expr::Const(Const { value: ConstType::String("test".into()), position: Position::new(1, 5, "ADHOC") }));
-    }
 
     #[test]
     fn parse_let_in_0() {
@@ -255,17 +242,6 @@ mod tests {
     #[test]
     fn parse_fun() {
         let result = &*parse_sane("fun a => a").unwrap().to_source();
-        assert_eq!(result, "fun a => a");
-    }
-
-    #[test]
-    fn parse_file_0() {
-        let result = &*parse_sane(r#"
-        nspace A = a
-          
-        def a = fun b => a
-          
-        1 |> A.a  "#).unwrap().to_source();
         assert_eq!(result, "fun a => a");
     }
 

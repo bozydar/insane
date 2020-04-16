@@ -14,7 +14,7 @@ use crate::execute::{Execute, Stack, execute};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct File {
-    pub n_space: Rc<NSpace>,
+    pub n_space: Option<Rc<NSpace>>,
     pub uses: Vec<Ident>,
     pub expr: Rc<Expr>,
     pub position: Position,
@@ -36,15 +36,24 @@ pub struct Def {
 
 impl ToSource for File {
     fn to_source(&self) -> String {
-        let uses = format!("use {}", self.uses.iter()
-            .map(Ident::to_source)
-            .collect::<Vec<String>>()
-            .join(" ")
-        );
-        let n_space = self.n_space.to_source();
+        let uses = 
+            if !self.uses.is_empty() {
+                format!("use {}\n", self.uses.iter()
+                    .map(Ident::to_source)
+                    .collect::<Vec<String>>()
+                    .join(" "))
+            } else {
+                "".to_string()
+            };
+        let n_space = 
+            if self.n_space.is_some() {
+                format!("{}\n", self.n_space.clone().unwrap().to_source())
+            } else {
+                "".to_string()
+            };
         let expr = self.expr.to_source();
 
-        format!("{}\n{}\n{}", uses, expr, n_space)
+        format!("{}{}{}", uses, expr, n_space)
     }
 }
 
@@ -108,13 +117,13 @@ impl NSpace {
     }
 }
 
-fn n_space_from_pair(pair: Pair<'_, Rule>, source: &str) -> Result<Rc<NSpace>, Error> {
+fn n_space_from_pair(pair: Pair<'_, Rule>, source: &str) -> Result<Option<Rc<NSpace>>, Error> {
     let position = Position::from_span(pair.as_span(), source);
     let mut inner = pair.into_inner();
 
     // generate default namespace if not found
     if inner.peek().is_none() {
-        return Ok(Rc::new(NSpace::autogenerate()));
+        return Ok(None);
     }
 
     let name =
@@ -144,8 +153,10 @@ fn n_space_from_pair(pair: Pair<'_, Rule>, source: &str) -> Result<Rc<NSpace>, E
     }
 
     Ok(
-        Rc::new(
-            NSpace { name, exposed, defs, position }
+        Some(
+            Rc::new(
+                NSpace { name, exposed, defs, position }
+            )
         )
     )
 }

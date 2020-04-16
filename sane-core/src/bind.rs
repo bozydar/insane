@@ -215,7 +215,8 @@ mod tests {
                 Position { start: 37, end: 73, source: Rc::from("ADHOC") }, 
                 Position { start: 155, end: 162, source: Rc::from("ADHOC") }, 
                 Position { start: 155, end: 162, source: Rc::from("ADHOC") }, 
-                Position { start: 92, end: 162, source: Rc::from("ADHOC") }]
+                Position { start: 92, end: 162, source: Rc::from("ADHOC") },
+                Position { start: 0, end: 162, source: Rc::from("ADHOC") }]
         }));
     }
 
