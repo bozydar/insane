@@ -1,0 +1,9 @@
+use string
+
+give check
+
+def check = check_priv
+
+def check_priv = fun a =>
+  "module_0" |> string.concat <| a
+  

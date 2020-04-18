@@ -17,7 +17,7 @@ use crate::pest::Parser;
 use crate::if_then_else::IfThenElse;
 use crate::build_in::BuildIn;
 use crate::binary::Binary;
-use crate::file::{File, NSpace, Def};
+use crate::file::File;
 
 pub trait ToSource {
     fn to_source(&self) -> String;
@@ -113,8 +113,6 @@ pub enum Expr {
     BuildIn(BuildIn),
     // These are rather statesments and not 1st class citizens
     File(File),
-    NSpace(NSpace),
-    Def(Def),
 }
 
 impl ExprEq for Expr {
@@ -140,8 +138,6 @@ impl ToSource for Expr {
             Expr::Fun(fun) => fun.to_source(),
             Expr::Binary(binary) => binary.to_source(),
             Expr::File(file) => file.to_source(),
-            Expr::NSpace(n_space) => n_space.to_source(),
-            Expr::Def(def) => def.to_source(),
             _ => format!("{:?}", self)
         }
     }

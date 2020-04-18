@@ -1,0 +1,6 @@
+use string
+
+give check
+
+def check = fun x =>
+  string.concat("submodule ", x)

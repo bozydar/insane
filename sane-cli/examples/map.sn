@@ -1,3 +1,5 @@
+use Prelude
+
 let map = fun fn =>
     let map_ = fun list =>
         if  list |> count |> eq <| 0 then

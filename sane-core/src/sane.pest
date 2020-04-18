@@ -19,7 +19,7 @@ char = _{
 }
 
 nspaced_ident = @{ ident ~ (WHITESPACE* ~ "." ~ WHITESPACE* ~ ident)* }
-ident = @{  (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )* }
+ident = @{  !(keywords~ WHITESPACE*) ~ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )* }
 
 let_in = { "let" ~ ident_expr ~ ("and" ~ "let" ~ ident_expr)*  ~ "in" ~ expr }
 ident_expr = { ident ~ "=" ~ expr }
@@ -41,15 +41,14 @@ if_then_else = { "if" ~ expr ~ "then" ~ expr ~ "else" ~ expr }
 expr = _{ infix | let_in | fun | bind | if_then_else |  term }
 term = _{  "(" ~ expr ~ ")" | structure | list | nspaced_ident | constant }
 constant = { number | string_quoted }
-file = { SOI ~ uses ~ expression ~ nspace ~ EOI }
+file = { SOI ~ import ~ expression ~ exposition ~ definitions ~ EOI }
 
-nspace = { ("nspace" ~ ident ~ exposed ~ defs)? }
-exposed = { ("give" ~ ident+)? }
-uses = { ("use" ~ ident+)? }
-defs = { def* }
-def = { "def" ~ ident_expr ~ ("and" ~ ident_expr)* }
+exposition = { ("give" ~ ident+)? }
+import = { ("use" ~ ident+)? }
+definitions = { definition* }
+definition = { "def" ~ ident_expr }
 expression = { expr? }
 
 keywords = {
-  "let" | "fun" | "def" | "and" | "nspace" | "use"  | "gives"
+  "let" | "fun" | "def" | "and" | "use"  | "give"
 }
