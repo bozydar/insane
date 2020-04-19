@@ -3,7 +3,7 @@ use crate::parse::{Expr, Position, ExprEq, ExprResult, ToSource, FromPair, Rule}
 use pest::iterators::{Pair};
 
 
-use crate::execute::{Execute, Stack, execute};
+use crate::execute::{Execute, Scope, execute};
 
 
 #[derive(Debug, PartialEq, Clone)]
@@ -32,7 +32,7 @@ impl FromPair for List {
 }
 
 impl Execute for List {
-    fn execute(&self, stack: &mut Stack) -> ExprResult {
+    fn execute(&self, stack: &mut Scope) -> ExprResult {
         let mut result: Vec<Rc<Expr>> = vec![];
         // let items = items.clone();
         for item in self.items.iter() {

@@ -7,7 +7,7 @@ use crate::error::Error;
 use pest::iterators::Pair;
 
 
-use crate::execute::{Execute, Stack, execute};
+use crate::execute::{Execute, Scope, execute};
 
 // TODO: Maybe better put everything into Expr because otherwise problems with converting
 // Results
@@ -70,7 +70,7 @@ pub struct Module {
     pub definitions: Vec<Rc<Definition>>,
     pub exposition: Rc<Exposition>,
     pub position: Position,
-    pub env: Rc<Stack>,
+    pub env: Rc<Scope>,
 }
 
 impl ToSource for File {
@@ -187,7 +187,7 @@ impl ToSource for Definition {
 }
 
 impl Execute for File {
-    fn execute(&self, stack: &mut Stack) -> ExprResult {
+    fn execute(&self, stack: &mut Scope) -> ExprResult {
         // If there is no expressions return module
         // for ident in self.import.idents {
         //     stack.push((ident.label, module_loader.load(ident)));

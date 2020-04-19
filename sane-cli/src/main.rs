@@ -49,7 +49,7 @@ fn run(file_path: &str) -> Result<String, String> {
     execute_string(&read_content(file_path)?, file_path, stack)
 }
 
-pub fn execute_string(content: &str, source: &str, stack: &mut execute::Stack) -> Result<String, String> {
+pub fn execute_string(content: &str, source: &str, stack: &mut execute::Scope) -> Result<String, String> {
     let result = execute::execute_file(&content, source, stack);
     match result {
         Ok(expr) => Ok(expr.to_source()),

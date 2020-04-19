@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
 use crate::error::Error;
-use crate::execute::{Stack, Execute};
+use crate::execute::{Scope, Execute};
 use pest::iterators::{Pair};
 
 
@@ -33,7 +33,7 @@ impl FromPair for Ident {
 }
 
 impl Execute for Ident {
-    fn execute(&self, stack: &mut Stack) -> ExprResult {
+    fn execute(&self, stack: &mut Scope) -> ExprResult {
         if let Some((_, expr)) = stack.iter().rev().find(|item| { &item.0 == &self.label }) {
             Ok(expr.clone())
         } else {

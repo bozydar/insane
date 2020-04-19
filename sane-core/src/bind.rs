@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
 use crate::error::Error;
-use crate::execute::{Stack, Execute, execute};
+use crate::execute::{Scope, Execute, execute};
 use pest::iterators::{Pair, Pairs};
 use crate::fun::Fun;
 use std::cell::RefCell;
@@ -54,8 +54,8 @@ impl FromPair for Bind {
 }
 
 impl Execute for Bind {
-    fn execute(&self, stack: &mut Stack) -> ExprResult {
-        fn build_curry_or_execute(current_args: Vec<Rc<Expr>>, current_fun: Rc<Expr>, position: &Position, stack: &mut Stack) -> ExprResult {
+    fn execute(&self, stack: &mut Scope) -> ExprResult {
+        fn build_curry_or_execute(current_args: Vec<Rc<Expr>>, current_fun: Rc<Expr>, position: &Position, stack: &mut Scope) -> ExprResult {
             let (arity, name) = match &*current_fun {
                 Expr::Fun(fun) => (fun.params.len(), "__custom__".to_string()),
                 Expr::BuildIn(build_in) => (build_in.arity, build_in.name.clone()),

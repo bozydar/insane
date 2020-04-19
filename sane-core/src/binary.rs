@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::parse::{Expr, Position, ExprResult, ToSource, Rule};
-use crate::execute::{Stack, Execute};
+use crate::execute::{Scope, Execute};
 use pest::iterators::{Pair};
 use crate::ident::Ident;
 use crate::bind::Bind;
@@ -75,7 +75,7 @@ impl Binary {
 }
 
 impl Execute for Binary {
-    fn execute(&self, stack: &mut Stack) -> ExprResult {
+    fn execute(&self, stack: &mut Scope) -> ExprResult {
         // TODO it is rather ineficient but need a "postparsing" phase to optimize it
         // In such phase all the Binary expression could be replaced with Bind so I couldn't
         // do it every time a binary is called

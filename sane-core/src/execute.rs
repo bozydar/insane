@@ -5,10 +5,10 @@ use std::cell::RefCell;
 use crate::build_in_functions::build_in_functions;
 
 pub trait Execute {
-    fn execute(&self, stack: &mut Stack) -> ExprResult;
+    fn execute(&self, stack: &mut Scope) -> ExprResult;
 }
 
-pub type Stack = Vec<(String, Rc<Expr>)>;
+pub type Scope = Vec<(String, Rc<Expr>)>;
 
 pub fn execute_sane(input: &str) -> ExprResult {
     let expr = parse_sane(input)?;
@@ -16,7 +16,7 @@ pub fn execute_sane(input: &str) -> ExprResult {
     execute(expr, stack)
 }
 
-pub fn execute_file(input: &str, source: &str, stack: &mut Stack) -> ExprResult {
+pub fn execute_file(input: &str, source: &str, stack: &mut Scope) -> ExprResult {
     let expr = parse_file(input, source)?;
     // println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
     let result = execute(expr, stack)?;
@@ -24,7 +24,7 @@ pub fn execute_file(input: &str, source: &str, stack: &mut Stack) -> ExprResult 
 }
 
 // TODO: Check if it possible to impl Execute for Rc<T> where T: Expr + Execute
-pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Stack) -> ExprResult {
+pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Scope) -> ExprResult {
     // println!("Executing: {:?}", expr);
     // println!("Stack: {}", stack_to_string(stack));
     let pre_result = 
@@ -70,7 +70,7 @@ pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Stack) -> ExprResult {
     }
 }
 
-fn stack_to_string(stack: &Stack) -> String {
+fn stack_to_string(stack: &Scope) -> String {
     stack.iter().map(|item| {
         format!("{} = {}", item.0, item.1.to_source())
     }).collect::<Vec<String>>().join("\n")

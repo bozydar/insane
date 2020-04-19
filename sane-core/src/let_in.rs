@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
-use crate::execute::{Stack, Execute, execute};
+use crate::execute::{Scope, Execute, execute};
 use pest::iterators::{Pair, Pairs};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -44,13 +44,13 @@ impl FromPair for LetIn {
 }
 
 impl Execute for LetIn {
-    fn execute(&self, stack: &mut Stack) -> ExprResult {
+    fn execute(&self, stack: &mut Scope) -> ExprResult {
         
         let let_in = self.clone();
 
             let mut pushed = 0;
-            let mut functions: Stack = vec![];
-            let mut to_append: Stack = vec![];
+            let mut functions: Scope = vec![];
+            let mut to_append: Scope = vec![];
 
             // execute all the R-expressions
             // and put functions on the side for further analysis

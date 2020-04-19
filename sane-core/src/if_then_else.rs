@@ -3,7 +3,7 @@ use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
 use pest::iterators::{Pair, Pairs};
 
 
-use crate::execute::{execute, Execute, Stack};
+use crate::execute::{execute, Execute, Scope};
 
 use crate::const_expr::{Const, ConstType};
 
@@ -40,7 +40,7 @@ impl FromPair for IfThenElse {
 }
 
 impl Execute for IfThenElse {
-    fn execute(&self, stack: &mut Stack) -> ExprResult {
+    fn execute(&self, stack: &mut Scope) -> ExprResult {
         let result = execute(self.cond.clone(), stack)?;
         if let Expr::Const(Const { value: ConstType::Bool(true), .. }) = *result {
             execute(self.then.clone(), stack)

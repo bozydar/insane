@@ -4,10 +4,10 @@ use crate::error::Error;
 use crate::list::List;
 use crate::const_expr::{Const, ConstType};
 
-use crate::execute::Stack;
+use crate::execute::Scope;
 use crate::build_in::{BuildInFun, BuildIn};
 
-pub fn build_in_functions() -> Stack {
+pub fn build_in_functions() -> Scope {
     let position = Position::new(0, 0, "BUILDIN");
 
     vec![

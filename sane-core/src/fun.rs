@@ -3,7 +3,7 @@ use crate::parse::{Expr, ExprEq, Position, ExprResult, ToSource, FromPair, Rule}
 use pest::iterators::{Pair, Pairs};
 use core::fmt;
 use std::cell::RefCell;
-use crate::execute::{Stack};
+use crate::execute::{Scope};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Fun {
@@ -11,7 +11,7 @@ pub struct Fun {
     pub body: Rc<Expr>,
     pub closure: RefCell<bool>,
     pub rec_decorated: RefCell<bool>,
-    pub env: Rc<RefCell<Stack>>,
+    pub env: Rc<RefCell<Scope>>,
     pub position: Position,
 }
 
