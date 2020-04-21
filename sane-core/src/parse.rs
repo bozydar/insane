@@ -19,6 +19,11 @@ use crate::build_in::BuildIn;
 use crate::binary::Binary;
 use crate::file::File;
 
+pub struct Context<'a> {
+    pub source: &'a str,
+    pub file_loader: String
+}
+
 pub trait ToSource {
     fn to_source(&self) -> String;
 }

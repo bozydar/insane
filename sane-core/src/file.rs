@@ -56,6 +56,8 @@ pub struct File {
     pub exposition: Rc<Exposition>,
     pub expr: Rc<Expr>,
     pub definitions: Vec<Rc<Definition>>,
+    pub exposed_module: Rc<Module>,
+    // pub imported_modules: Vec<Rc<Module>>,
     pub position: Position,
 }
 
@@ -67,10 +69,7 @@ pub struct Definition {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Module {
-    pub definitions: Vec<Rc<Definition>>,
-    pub exposition: Rc<Exposition>,
-    pub position: Position,
-    pub env: Rc<Scope>,
+    pub env: Rc<Scope>
 }
 
 impl ToSource for File {
@@ -111,20 +110,36 @@ impl FromPair for File {
         let position = Position::from_span(pair.as_span(), source);
         let mut inner = pair.into_inner();
 
+        // TODO Ask module loader to parse the file and keep its AST there
         let import = Rc::new(Import::try_from_pair(inner.next().unwrap(), source)?);
-        let expr = expr_else_module(inner.next().unwrap(), source)?;
+        let expr = expr_else_unit(inner.next().unwrap(), source)?;
         let exposition = Rc::new(Exposition::try_from_pair(inner.next().unwrap(), source)?);
         let definitions = Definition::try_many_from_pair(inner.next().unwrap(), source)?;
-
+        let exposed_module = Rc::new(build_module(&exposition.idents, &definitions)?);
+        // let imported_modules = fetch_modules(&import.idents)?;
 
         Ok(
             Rc::new(
                 Expr::File(
-                    File { import, exposition, expr, position, definitions }
+                    File { import, exposition, expr, position, definitions, exposed_module }
                 )
             )
         )
     }
+}
+
+fn build_module(expositions: &[Rc<Ident>], definitions: &[Rc<Definition>]) -> Result<Module, Error> {
+    let mut env = vec![];
+    for exposed in expositions {
+        if let Some(found_pair) = definitions.iter().find(|pair| pair.def.0 == exposed.label)  {
+            env.push((exposed.label.clone(), found_pair.def.1.clone()));
+        }
+    }
+    Ok(Module { env: Rc::new(env) })
+}
+
+fn fetch_modules(imports: &[Rc<Ident>]) -> Result<Vec<Rc<Module>>, Error> {
+    unimplemented!()
 }
 
 impl Import {
@@ -188,15 +203,11 @@ impl ToSource for Definition {
 
 impl Execute for File {
     fn execute(&self, stack: &mut Scope) -> ExprResult {
-        // If there is no expressions return module
-        // for ident in self.import.idents {
-        //     stack.push((ident.label, module_loader.load(ident)));
-        // }   
         execute(self.expr.clone(), stack)
     }
 }
 
-fn expr_else_module(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+fn expr_else_unit(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
     let position = Position::from_span(pair.as_span(), source);
 
     if let Some(ident) = pair.into_inner().next() {

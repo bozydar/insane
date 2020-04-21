@@ -3,9 +3,21 @@ use crate::parse::{Expr, ExprResult, parse_sane, parse_file, ToSource, Position}
 
 use std::cell::RefCell;
 use crate::build_in_functions::build_in_functions;
+use crate::file::File;
+use crate::ident::Ident;
 
 pub trait Execute {
     fn execute(&self, stack: &mut Scope) -> ExprResult;
+}
+
+pub(crate) struct ScopeContext {
+    files: Vec<Rc<File>>
+}
+
+impl ScopeContext {
+    pub fn parse_file(ident: &Ident) -> File {
+        unimplemented!()
+    }
 }
 
 pub type Scope = Vec<(String, Rc<Expr>)>;
@@ -35,6 +47,8 @@ pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Scope) -> ExprResult {
             Expr::LetIn(let_in) => {
                 (Some(let_in.position.clone()), let_in.execute(stack))
             }
+            // TODO implement nspaced_ident the way it fetches the module and func
+            // Think how to handle Scope in module
             Expr::Ident(ident) => {
                 (Some(ident.position.clone()), ident.execute(stack))
             }
