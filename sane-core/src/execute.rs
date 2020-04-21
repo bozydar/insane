@@ -28,7 +28,7 @@ pub fn execute_sane(input: &str) -> ExprResult {
     execute(expr, stack)
 }
 
-pub fn execute_file(input: &str, source: &str, stack: &mut Scope) -> ExprResult {
+pub fn execute_file(input: &str, context: &mut Context, stack: &mut Scope) -> ExprResult {
     let expr = parse_file(input, source)?;
     // println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
     let result = execute(expr, stack)?;

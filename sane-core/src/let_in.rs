@@ -20,7 +20,7 @@ impl ToSource for LetIn {
 }
 
 impl FromPair for LetIn {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let mut inner: Pairs<'_, Rule> = pair.into_inner();
         let mut lets: Vec<(String, Rc<Expr>)> = vec![];
 

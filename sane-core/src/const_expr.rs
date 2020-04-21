@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, ExprEq, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, ExprEq, Position, ExprResult, ToSource, FromPair, Rule, Context};
 use crate::error::Error;
 use pest::iterators::{Pair};
 
@@ -62,10 +62,10 @@ impl ToSource for Const {
 }
 
 impl FromPair for Const {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let pair = pair.into_inner().next().unwrap();
         let rule = pair.as_rule();
-        let position: Position = Position::from_span(pair.as_span(), source);
+        let position: Position = Position::from_span(pair.as_span(), context);
         match rule {
             Rule::string => {
                 Ok(Rc::new(Expr::Const(Const::string(pair.as_str(), position))))
@@ -75,7 +75,7 @@ impl FromPair for Const {
                 Ok(Rc::new(Expr::Const(Const::numeric(value, position))))
             }
             _ => {
-                let position: Position = Position::from_span(pair.as_span(), source);
+                let position: Position = Position::from_span(pair.as_span(), context);
                 Error::new(&format!("Unknown const type `{:?}`", rule), &position).into()
             }
         }

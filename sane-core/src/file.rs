@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule, Context};
 use crate::const_expr::{Const, ConstType};
 use crate::ident::Ident;
 use crate::error::Error;
@@ -106,15 +106,15 @@ impl ToSource for File {
 }
 
 impl FromPair for File {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let position = Position::from_span(pair.as_span(), source);
         let mut inner = pair.into_inner();
 
         // TODO Ask module loader to parse the file and keep its AST there
-        let import = Rc::new(Import::try_from_pair(inner.next().unwrap(), source)?);
-        let expr = expr_else_unit(inner.next().unwrap(), source)?;
-        let exposition = Rc::new(Exposition::try_from_pair(inner.next().unwrap(), source)?);
-        let definitions = Definition::try_many_from_pair(inner.next().unwrap(), source)?;
+        let import = Rc::new(Import::try_from_pair(inner.next().unwrap(), context)?);
+        let expr = expr_else_unit(inner.next().unwrap(), context)?;
+        let exposition = Rc::new(Exposition::try_from_pair(inner.next().unwrap(), context)?);
+        let definitions = Definition::try_many_from_pair(inner.next().unwrap(), context)?;
         let exposed_module = Rc::new(build_module(&exposition.idents, &definitions)?);
         // let imported_modules = fetch_modules(&import.idents)?;
 
@@ -143,7 +143,7 @@ fn fetch_modules(imports: &[Rc<Ident>]) -> Result<Vec<Rc<Module>>, Error> {
 }
 
 impl Import {
-    fn try_from_pair(pair: Pair<'_, Rule>, source: &str) -> Result<Import, Error> {
+    fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Import, Error> {
         let position = Position::from_span(pair.as_span(), source);
         let mut idents = vec![];
 
@@ -157,7 +157,7 @@ impl Import {
 }
 
 impl Exposition {
-    fn try_from_pair(pair: Pair<'_, Rule>, source: &str) -> Result<Exposition, Error> {
+    fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Exposition, Error> {
         let position = Position::from_span(pair.as_span(), source);
         let mut idents = vec![];
 
@@ -171,7 +171,7 @@ impl Exposition {
 }
 
 impl Definition {
-    fn try_from_pair(pair: Pair<'_, Rule>, source: &str) -> Result<Definition, Error> {
+    fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Definition, Error> {
         let position = Position::from_span(pair.as_span(), source);
         let mut ident_expr_inner = pair.into_inner().next().unwrap().into_inner();
 
@@ -183,7 +183,7 @@ impl Definition {
         Ok(Definition { def, position })
     }
 
-    fn try_many_from_pair(pair: Pair<'_, Rule>, source: &str) -> Result<Vec<Rc<Definition>>, Error> {
+    fn try_many_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Vec<Rc<Definition>>, Error> {
         let mut defintions = vec![];
 
         for def in pair.into_inner() {
@@ -207,12 +207,12 @@ impl Execute for File {
     }
 }
 
-fn expr_else_unit(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+fn expr_else_unit(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
     let position = Position::from_span(pair.as_span(), source);
 
     if let Some(ident) = pair.into_inner().next() {
         print!("HERE");
-        Expr::from_pair(ident, source)
+        Expr::from_pair(ident, context)
     } else {
         print!("unit!!!!!!!");
         Ok(Rc::new(Expr::Const(Const { value: ConstType::Unit, position })))

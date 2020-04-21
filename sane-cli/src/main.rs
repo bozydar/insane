@@ -8,7 +8,7 @@ use std::io::prelude::*;
 use std::result::Result;
 
 use sane_core::execute;
-use sane_core::parse::{ToSource, Selection};
+use sane_core::parse::{ToSource, Selection, Context};
 use sane_core::build_in_functions::build_in_functions;
 
 mod interactive;
@@ -49,8 +49,8 @@ fn run(file_path: &str) -> Result<String, String> {
     execute_string(&read_content(file_path)?, file_path, stack)
 }
 
-pub fn execute_string(content: &str, source: &str, stack: &mut execute::Scope) -> Result<String, String> {
-    let result = execute::execute_file(&content, source, stack);
+pub fn execute_string(content: &str, context: &mut Context, stack: &mut execute::Scope) -> Result<String, String> {
+    let result = execute::execute_file(&content, context.source, stack);
     match result {
         Ok(expr) => Ok(expr.to_source()),
         Err(err) => {

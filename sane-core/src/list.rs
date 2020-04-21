@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprEq, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprEq, ExprResult, ToSource, FromPair, Rule, Context};
 use pest::iterators::{Pair};
 
 
@@ -20,12 +20,12 @@ impl ToSource for List {
 }
 
 impl FromPair for List {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let mut items: Vec<Rc<Expr>> = vec![];
         let position = Position::from_span(pair.as_span(), source);
 
         for item in pair.into_inner() {
-            items.push(Expr::from_pair(item, source)?);
+            items.push(Expr::from_pair(item, context)?);
         }
         Ok(Rc::new(Expr::List(List { items, position })))
     }

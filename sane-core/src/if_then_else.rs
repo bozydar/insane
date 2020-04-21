@@ -23,7 +23,7 @@ impl ToSource for IfThenElse {
 }
 
 impl FromPair for IfThenElse {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let position = Position::from_span(pair.as_span(), source);
         let mut inner: Pairs<'_, Rule> = pair.into_inner();
         let cond = inner.next().unwrap();

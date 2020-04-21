@@ -19,8 +19,8 @@ use crate::build_in::BuildIn;
 use crate::binary::Binary;
 use crate::file::File;
 
-pub struct Context<'a> {
-    pub source: &'a str,
+pub struct Context {
+    pub source: Rc<str>,
     pub file_loader: String
 }
 
@@ -29,7 +29,7 @@ pub trait ToSource {
 }
 
 pub trait FromPair {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult;
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult;
 }
 
 pub trait ExprEq {
@@ -88,8 +88,8 @@ impl Position {
         }
     }
 
-    pub fn from_span(span: Span, source: &str) -> Position {
-        Position::new(span.start(), span.end(), source)
+    pub fn from_span(span: Span, context: &mut Context) -> Position {
+        Position::new(span.start(), span.end(), &*context.source)
     }
 }
 
@@ -149,29 +149,29 @@ impl ToSource for Expr {
 }
 
 impl FromPair for Expr {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let rule = pair.as_rule();
         match rule {
-            Rule::file => File::from_pair(pair, source),
-            Rule::infix => climb(pair, source),
-            Rule::constant => Const::from_pair(pair, source),
-            Rule::let_in => LetIn::from_pair(pair, source),
-            Rule::ident => Ident::from_pair(pair, source),
-            Rule::bind => Bind::from_pair(pair, source),
-            Rule::fun => Fun::from_pair(pair, source),
-            Rule::list => List::from_pair(pair, source),
+            Rule::file => File::from_pair(pair, context),
+            Rule::infix => climb(pair, context),
+            Rule::constant => Const::from_pair(pair, context),
+            Rule::let_in => LetIn::from_pair(pair, context),
+            Rule::ident => Ident::from_pair(pair, context),
+            Rule::bind => Bind::from_pair(pair, context),
+            Rule::fun => Fun::from_pair(pair, context),
+            Rule::list => List::from_pair(pair, context),
             // TODO Should be fixed when nspaces implemented
-            Rule::nspaced_ident => Ident::from_pair(pair, source),
-            Rule::if_then_else => IfThenElse::from_pair(pair, source),
+            Rule::nspaced_ident => Ident::from_pair(pair, context),
+            Rule::if_then_else => IfThenElse::from_pair(pair, context),
             _ => {
-                let position: Position = Position::from_span(pair.as_span(), source);
+                let position: Position = Position::from_span(pair.as_span(), context);
                 Error::new(&format!("Unknown rule `{:?}`", rule), &position).into()
             }
         }
     }
 }
 
-pub fn parse_file(input: &str, source: &str) -> ExprResult {
+pub fn parse_file(input: &str, context: &mut Context) -> ExprResult {
     let parse_result = SaneParser::parse(Rule::file, input);
     match parse_result {
         Ok(mut pairs) => {
@@ -206,7 +206,7 @@ lazy_static! {
     pub static ref PREC_CLIMBER: PrecClimber<Rule> = precedence_climber();
 }
 
-pub fn climb(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+pub fn climb(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
     let primary = |pair| {
         Expr::from_pair(pair, source)
     };

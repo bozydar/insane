@@ -28,7 +28,7 @@ impl ToSource for Fun {
 }
 
 impl FromPair for Fun {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let position = Position::from_span(pair.as_span(), source);
         let mut inner: Pairs<Rule> = pair.into_inner();
         let params = inner.next().unwrap().into_inner()

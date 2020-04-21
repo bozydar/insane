@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule, Context};
 use crate::error::Error;
 use crate::execute::{Scope, Execute, execute};
 use pest::iterators::{Pair, Pairs};
@@ -39,11 +39,11 @@ impl ToSource for Bind {
 }
 
 impl FromPair for Bind {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         // TODO the order has changed
-        let position = Position::from_span(pair.as_span(), source);
+        let position = Position::from_span(pair.as_span(), context);
         let mut inner: Pairs<Rule> = pair.into_inner();
-        let fun = Expr::from_pair(inner.next().unwrap(), source)?;
+        let fun = Expr::from_pair(inner.next().unwrap(), context)?;
         let mut args = vec![];
         for next_pair in inner {
             args.push(Expr::from_pair(next_pair, source)?);

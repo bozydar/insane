@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, Rule, Context};
 use crate::execute::{Scope, Execute};
 use pest::iterators::{Pair};
 use crate::ident::Ident;
@@ -57,8 +57,8 @@ impl ToSource for Binary {
 
 impl Binary {
     // TODO it is not a constructor of binary so it should have different name
-    pub fn new(operator: Pair<'_, Rule>, left: ExprResult, right: ExprResult, source: &str) -> ExprResult {
-        let position = Position::from_span(operator.as_span(), source);
+    pub fn new(operator: Pair<'_, Rule>, left: ExprResult, right: ExprResult, context: &mut Context) -> ExprResult {
+        let position = Position::from_span(operator.as_span(), context);
         Ok(
             Rc::new(
                 Expr::Binary(

@@ -18,7 +18,7 @@ impl ToSource for Ident {
 }
 
 impl Ident {
-    pub fn try_from_pair(pair: Pair<'_, Rule>, source: &str) -> Result<Ident, Error> {
+    pub fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Ident, Error> {
         let position = Position::from_span(pair.as_span(), source);
         Ok(Ident { label: pair.as_str().to_string(), position })
     }
@@ -26,7 +26,7 @@ impl Ident {
 
 
 impl FromPair for Ident {
-    fn from_pair(pair: Pair<'_, Rule>, source: &str) -> ExprResult {
+    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let position = Position::from_span(pair.as_span(), source);
         Ok(Rc::new(Expr::Ident(Ident::try_from_pair(pair, source)?)))
     }
