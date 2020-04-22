@@ -22,7 +22,7 @@ impl ToSource for List {
 impl FromPair for List {
     fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let mut items: Vec<Rc<Expr>> = vec![];
-        let position = Position::from_span(pair.as_span(), source);
+        let position = Position::from_span(pair.as_span(), context);
 
         for item in pair.into_inner() {
             items.push(Expr::from_pair(item, context)?);

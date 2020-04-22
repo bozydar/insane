@@ -107,7 +107,7 @@ impl ToSource for File {
 
 impl FromPair for File {
     fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let position = Position::from_span(pair.as_span(), source);
+        let position = Position::from_span(pair.as_span(), context);
         let mut inner = pair.into_inner();
 
         // TODO Ask module loader to parse the file and keep its AST there
@@ -144,11 +144,11 @@ fn fetch_modules(imports: &[Rc<Ident>]) -> Result<Vec<Rc<Module>>, Error> {
 
 impl Import {
     fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Import, Error> {
-        let position = Position::from_span(pair.as_span(), source);
+        let position = Position::from_span(pair.as_span(), context);
         let mut idents = vec![];
 
         for ident in pair.into_inner() {
-            let ident = Ident::try_from_pair(ident, source)?;
+            let ident = Ident::try_from_pair(ident, context)?;
             idents.push(Rc::new(ident.clone()))
         }
 
@@ -158,11 +158,11 @@ impl Import {
 
 impl Exposition {
     fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Exposition, Error> {
-        let position = Position::from_span(pair.as_span(), source);
+        let position = Position::from_span(pair.as_span(), context);
         let mut idents = vec![];
 
         for ident in pair.into_inner() {
-            let ident = Ident::try_from_pair(ident, source)?;
+            let ident = Ident::try_from_pair(ident, context)?;
             idents.push(Rc::new(ident.clone()))
         }
 
@@ -172,13 +172,13 @@ impl Exposition {
 
 impl Definition {
     fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Definition, Error> {
-        let position = Position::from_span(pair.as_span(), source);
+        let position = Position::from_span(pair.as_span(), context);
         let mut ident_expr_inner = pair.into_inner().next().unwrap().into_inner();
 
         let ident = ident_expr_inner.next().unwrap().as_str().to_string();
         let value = ident_expr_inner.next().unwrap();
 
-        let def = (ident, Expr::from_pair(value, source)?);
+        let def = (ident, Expr::from_pair(value, context)?);
 
         Ok(Definition { def, position })
     }
@@ -187,7 +187,7 @@ impl Definition {
         let mut defintions = vec![];
 
         for def in pair.into_inner() {
-            let def = Definition::try_from_pair(def, source)?;
+            let def = Definition::try_from_pair(def, context)?;
             defintions.push(Rc::new(def));
         }
 
@@ -208,7 +208,7 @@ impl Execute for File {
 }
 
 fn expr_else_unit(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-    let position = Position::from_span(pair.as_span(), source);
+    let position = Position::from_span(pair.as_span(), context);
 
     if let Some(ident) = pair.into_inner().next() {
         print!("HERE");

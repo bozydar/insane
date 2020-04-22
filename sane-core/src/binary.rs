@@ -57,8 +57,9 @@ impl ToSource for Binary {
 
 impl Binary {
     // TODO it is not a constructor of binary so it should have different name
-    pub fn new(operator: Pair<'_, Rule>, left: ExprResult, right: ExprResult, context: &mut Context) -> ExprResult {
-        let position = Position::from_span(operator.as_span(), context);
+    pub fn new(operator: Pair<'_, Rule>, left: ExprResult, right: ExprResult, source: &str) -> ExprResult {
+        let span = operator.as_span();
+        let position = Position::new(span.start(), span.end(), source);
         Ok(
             Rc::new(
                 Expr::Binary(

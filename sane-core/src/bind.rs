@@ -46,7 +46,7 @@ impl FromPair for Bind {
         let fun = Expr::from_pair(inner.next().unwrap(), context)?;
         let mut args = vec![];
         for next_pair in inner {
-            args.push(Expr::from_pair(next_pair, source)?);
+            args.push(Expr::from_pair(next_pair, context)?);
         }
 
         Ok(Rc::new(Expr::Bind(Bind { args, fun, position })))

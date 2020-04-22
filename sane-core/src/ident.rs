@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule, Context};
 use crate::error::Error;
 use crate::execute::{Scope, Execute};
 use pest::iterators::{Pair};
@@ -19,7 +19,7 @@ impl ToSource for Ident {
 
 impl Ident {
     pub fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Ident, Error> {
-        let position = Position::from_span(pair.as_span(), source);
+        let position = Position::from_span(pair.as_span(), context);
         Ok(Ident { label: pair.as_str().to_string(), position })
     }
 }
@@ -27,8 +27,8 @@ impl Ident {
 
 impl FromPair for Ident {
     fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let position = Position::from_span(pair.as_span(), source);
-        Ok(Rc::new(Expr::Ident(Ident::try_from_pair(pair, source)?)))
+        let position = Position::from_span(pair.as_span(), context);
+        Ok(Rc::new(Expr::Ident(Ident::try_from_pair(pair, context)?)))
     }
 }
 

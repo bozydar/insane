@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule, Context};
 use crate::execute::{Scope, Execute, execute};
 use pest::iterators::{Pair, Pairs};
 
@@ -29,12 +29,12 @@ impl FromPair for LetIn {
             let mut ident_expr_inner = pair.into_inner();
             let ident = ident_expr_inner.next().unwrap().as_str().to_string();
             let value = ident_expr_inner.next().unwrap();
-            lets.push((ident, Expr::from_pair(value, source)?));
+            lets.push((ident, Expr::from_pair(value, context)?));
             pair = inner.next().unwrap();
         }
 
-        let position = Position::from_span(pair.as_span(), source);
-        let in_part = Expr::from_pair(pair, source)?;
+        let position = Position::from_span(pair.as_span(), context);
+        let in_part = Expr::from_pair(pair, context)?;
         Ok(Rc::new(Expr::LetIn(LetIn {
             lets,
             in_part,

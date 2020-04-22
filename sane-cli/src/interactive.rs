@@ -10,6 +10,7 @@ use rustyline::{Cmd, CompletionType, Config, Context, EditMode, Editor, KeyPress
 use rustyline_derive::Helper;
 
 use sane_core::build_in_functions::build_in_functions;
+use sane_core::parse;
 
 #[derive(Helper)]
 struct MyHelper {
@@ -111,7 +112,7 @@ pub fn main_loop() -> rustyline::Result<()> {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                match crate::execute_string(&line, "REPL", stack) {
+                match crate::execute_string(&line, &mut parse::Context::new("REPL"), stack) {
                     Ok(result) => {
                         println!("{}", result);
                         println!("{:?}", stack);

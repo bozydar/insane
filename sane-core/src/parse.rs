@@ -24,6 +24,12 @@ pub struct Context {
     pub file_loader: String
 }
 
+impl Context {
+    pub fn new(source: &str) -> Context {
+        Context { source: source.into(), file_loader: "".to_string() }
+    }
+}
+
 pub trait ToSource {
     fn to_source(&self) -> String;
 }
@@ -88,7 +94,7 @@ impl Position {
         }
     }
 
-    pub fn from_span(span: Span, context: &mut Context) -> Position {
+    pub fn from_span(span: Span, context: &Context) -> Position {
         Position::new(span.start(), span.end(), &*context.source)
     }
 }
@@ -176,15 +182,15 @@ pub fn parse_file(input: &str, context: &mut Context) -> ExprResult {
     match parse_result {
         Ok(mut pairs) => {
             if let Some(pair) = pairs.next() {
-                Expr::from_pair(pair, source)
+                Expr::from_pair(pair, context)
             } else {
-                Err(Error::new("Cant't find any expression", &Position::new(1, 1, source)))
+                Err(Error::new("Cant't find any expression", &Position::new(1, 1, &context.source)))
             }
         },
         Err(err) => {
             let position = match err.location {
-                InputLocation::Pos(pos) => Position::new(pos, pos, source),
-                InputLocation::Span(span) => Position::new(span.0, span.1, source),
+                InputLocation::Pos(pos) => Position::new(pos, pos, &context.source),
+                InputLocation::Span(span) => Position::new(span.0, span.1, &context.source),
             };
             Err(Error::new(&format!("Can't parse: {}", err), &position))
         }
@@ -192,7 +198,7 @@ pub fn parse_file(input: &str, context: &mut Context) -> ExprResult {
 }
 
 pub fn parse_sane(input: &str) -> ExprResult {
-    parse_file(input, "ADHOC")
+    parse_file(input, &mut Context::new("ADHOC"))
 }
 
 fn precedence_climber() -> PrecClimber<Rule> {
@@ -207,8 +213,9 @@ lazy_static! {
 }
 
 pub fn climb(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
+    let source = &*context.source.clone();
     let primary = |pair| {
-        Expr::from_pair(pair, source)
+        Expr::from_pair(pair, context)
     };
 
     let build_binary = |lhs, op, rhs| {

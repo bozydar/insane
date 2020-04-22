@@ -46,11 +46,11 @@ fn main() {
 
 fn run(file_path: &str) -> Result<String, String> {
     let stack = &mut build_in_functions();
-    execute_string(&read_content(file_path)?, file_path, stack)
+    execute_string(&read_content(file_path)?, &mut Context::new(file_path), stack)
 }
 
 pub fn execute_string(content: &str, context: &mut Context, stack: &mut execute::Scope) -> Result<String, String> {
-    let result = execute::execute_file(&content, context.source, stack);
+    let result = execute::execute_file(&content, context, stack);
     match result {
         Ok(expr) => Ok(expr.to_source()),
         Err(err) => {
