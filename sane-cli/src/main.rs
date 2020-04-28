@@ -8,7 +8,8 @@ use std::io::prelude::*;
 use std::result::Result;
 
 use sane_core::execute;
-use sane_core::parse::{ToSource, Selection, Context};
+use sane_core::parse::{ToSource, Selection};
+use sane_core::context::Context;
 use sane_core::build_in_functions::build_in_functions;
 
 mod interactive;

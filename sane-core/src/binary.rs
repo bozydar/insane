@@ -1,5 +1,6 @@
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, Rule, Context};
+use crate::parse::{Expr, Position, ExprResult, ToSource, Rule};
+use crate::context::Context;
 use crate::execute::{Scope, Execute};
 use pest::iterators::{Pair};
 use crate::ident::Ident;

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use pest::Span;
 use pest::iterators::Pair;
 use pest::error::InputLocation;
@@ -5,6 +6,7 @@ use pest::prec_climber::{Assoc, Operator, PrecClimber};
 use std::rc::Rc;
 use std::fmt::{Debug};
 use lazy_static;
+use std::path;
 
 use crate::error::Error;
 use crate::let_in::LetIn;
@@ -18,17 +20,7 @@ use crate::if_then_else::IfThenElse;
 use crate::build_in::BuildIn;
 use crate::binary::Binary;
 use crate::file::File;
-
-pub struct Context {
-    pub source: Rc<str>,
-    pub file_loader: String
-}
-
-impl Context {
-    pub fn new(source: &str) -> Context {
-        Context { source: source.into(), file_loader: "".to_string() }
-    }
-}
+use crate::context::Context;
 
 pub trait ToSource {
     fn to_source(&self) -> String;

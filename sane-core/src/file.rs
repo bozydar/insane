@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule, Context};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::context::Context;
 use crate::const_expr::{Const, ConstType};
 use crate::ident::Ident;
 use crate::error::Error;
@@ -52,6 +53,7 @@ impl ToSource for Exposition {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct File {
+    pub name: String,
     pub import: Rc<Import>,
     pub exposition: Rc<Exposition>,
     pub expr: Rc<Expr>,
@@ -108,6 +110,7 @@ impl ToSource for File {
 impl FromPair for File {
     fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         let position = Position::from_span(pair.as_span(), context);
+        let name = context.source_name();
         let mut inner = pair.into_inner();
 
         // TODO Ask module loader to parse the file and keep its AST there
@@ -121,7 +124,7 @@ impl FromPair for File {
         Ok(
             Rc::new(
                 Expr::File(
-                    File { import, exposition, expr, position, definitions, exposed_module }
+                    File { import, exposition, expr, position, definitions, exposed_module, name }
                 )
             )
         )
@@ -149,6 +152,7 @@ impl Import {
 
         for ident in pair.into_inner() {
             let ident = Ident::try_from_pair(ident, context)?;
+            // context.load(&ident.label);
             idents.push(Rc::new(ident.clone()))
         }
 

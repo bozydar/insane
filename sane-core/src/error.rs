@@ -19,3 +19,9 @@ impl Error {
         self
     }
 }
+
+impl ToString for Error {
+    fn to_string(&self) -> String { 
+        self.message.clone()
+     }
+}
