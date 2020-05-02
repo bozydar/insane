@@ -1,3 +1,4 @@
+use crate::ident::Ident;
 use core::cell::RefCell;
 use crate::error::Error;
 use crate::parse;
@@ -11,21 +12,22 @@ use std::io::prelude::*;
 
 pub type Path = String;
 
+#[derive(Debug)]
 pub struct Context {
     pub source: Rc<str>,
-    pub file_loader: Rc<RefCell<FileLoader>>
+    file_loader: Rc<RefCell<FileLoader>>
 }
 
 impl Context {
-    pub fn new(source: &str) -> Context {
-        let file_loader = Rc::new(RefCell::new(FileLoader::new(&[])));
+    pub fn new(source: &str, look_path: &[&str]) -> Context {
+        let file_loader = Rc::new(RefCell::new(FileLoader::new(look_path)));
         Context { 
             source: source.into(), 
             file_loader
         }
     }
 
-    pub fn from_new_source(&mut self, source: &str) -> Context {
+    pub fn from_new_source(&self, source: &str) -> Context {
         Context { 
             source: source.into(), 
             file_loader: self.file_loader.clone()
@@ -38,9 +40,15 @@ impl Context {
             .unwrap().to_str()
             .unwrap().to_string()
     }
+
+    pub fn load_file(&mut self, ident: &Ident) -> Result<Rc<File>, Error> {
+        let mut file_loader = self.file_loader.borrow_mut();
+        file_loader.load(ident, self)
+    }
 }
 
-pub struct FileLoader {
+#[derive(Debug)]
+struct FileLoader {
     pub look_path: Vec<String>,
     pub files: Vec<Rc<File>>
 }
@@ -72,28 +80,27 @@ impl FileLoader {
     ///     1. Look for the module in the current directory
     ///     2. Look for the module in directories defined in look_path
     /// 4. Module is identified by name and it is the file found first
-    pub fn load(&mut self, module_name: &str, context: &mut Context) -> Result<Rc<File>, String> {
+    pub fn load(&mut self, ident: &Ident, context: &Context) -> Result<Rc<File>, Error> {
+        let module_name = &ident.label;
         if let Some(file) = self.find_in_files(module_name) {
             Ok(file)
         } else {
-            let path = self.find_in_path(module_name)?;
-            let content = FileLoader::read_content(&path)?;
+            let path = self.find_in_path(module_name)
+                .map_err(|err| Error::new(&err, &ident.position))?;
+            let content = FileLoader::read_content(&path)
+                .map_err(|err| Error::new(&err, &ident.position))?;
             // TODO Can avoid such things when parsing to the direct type instead of Expr
             let context = &mut context.from_new_source(&path);
-            match parse::parse_file(&content, context) {
-                Ok(file) => match &*file {
-                    parse::Expr::File(file) => {
-                        let file = Rc::new(file.clone());
-                        self.files.push(file.clone());
-                        Ok(file)
-
-                    }
-                    _ => unreachable!()
+            let file = parse::parse_file(&content, context)?;
+            match &*file {
+                parse::Expr::File(file) => {
+                    let file = Rc::new(file.clone());
+                    self.files.push(file.clone());
+                    Ok(file)
                 }
-                Err(error) => Err(error.to_string())
+                _ => unreachable!()
             }
         }
-        
     }
 
     fn read_content(file_path: &str) -> Result<String, String> {
@@ -129,23 +136,25 @@ impl FileLoader {
             _ => None
         }
     }
-
-    
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::execute::execute_sane;
-    use crate::parse::{parse_sane, ToSource};
+    use crate::parse::{parse_file, ToSource};
     use crate::file::File;
+
+    // TODO Better tests in the proper firectory
 
     #[test]
     fn load_0() {
-        let file_loader = &mut FileLoader::new(&["./src"]);
-        let context = &mut Context::new(r#"ADHOC"#);
-        let result = file_loader.load("test", context).unwrap();
-        dbg!(&file_loader.files);
+        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let result = parse_file(r#"
+        use module_0
+
+        1"#, context).unwrap();
+        dbg!(&context);
 
         assert_eq!(result.to_source(), "3.0")
     }

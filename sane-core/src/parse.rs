@@ -190,7 +190,7 @@ pub fn parse_file(input: &str, context: &mut Context) -> ExprResult {
 }
 
 pub fn parse_sane(input: &str) -> ExprResult {
-    parse_file(input, &mut Context::new("ADHOC"))
+    parse_file(input, &mut Context::new("ADHOC", &[]))
 }
 
 fn precedence_climber() -> PrecClimber<Rule> {

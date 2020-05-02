@@ -152,7 +152,7 @@ impl Import {
 
         for ident in pair.into_inner() {
             let ident = Ident::try_from_pair(ident, context)?;
-            // context.load(&ident.label);
+            let _ = context.load_file(&ident)?;
             idents.push(Rc::new(ident.clone()))
         }
 

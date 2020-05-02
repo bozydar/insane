@@ -113,7 +113,7 @@ pub fn main_loop() -> rustyline::Result<()> {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                match crate::execute_string(&line, &mut context::Context::new("REPL"), stack) {
+                match crate::execute_string(&line, &mut context::Context::new("REPL", &[]), stack) {
                     Ok(result) => {
                         println!("{}", result);
                         println!("{:?}", stack);
