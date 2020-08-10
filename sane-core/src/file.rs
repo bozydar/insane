@@ -1,14 +1,13 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
-use crate::context::Context;
 use crate::const_expr::{Const, ConstType};
-use crate::ident::Ident;
+use crate::context::Context;
 use crate::error::Error;
+use crate::ident::Ident;
+use crate::parse::{Expr, ExprResult, FromPair, Position, Rule, ToSource};
 use pest::iterators::Pair;
+use std::cell::RefCell;
+use std::rc::Rc;
 
-
-use crate::execute::{Execute, Scope, execute};
+use crate::execute::{execute, Execute, Scope};
 
 // TODO: Maybe better put everything into Expr because otherwise problems with converting
 // Results
@@ -22,10 +21,14 @@ pub struct Import {
 impl ToSource for Import {
     fn to_source(&self) -> String {
         if !self.idents.is_empty() {
-            format!("use {}\n", self.idents.iter()
-                .map(|ident| ident.to_source() )
-                .collect::<Vec<String>>()
-                .join(" "))
+            format!(
+                "use {}\n",
+                self.idents
+                    .iter()
+                    .map(|ident| ident.to_source())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            )
         } else {
             "".to_string()
         }
@@ -41,10 +44,14 @@ pub struct Exposition {
 impl ToSource for Exposition {
     fn to_source(&self) -> String {
         if !self.idents.is_empty() {
-            format!("use {}\n", self.idents.iter()
-                .map(|ident| ident.to_source() )
-                .collect::<Vec<String>>()
-                .join(" "))
+            format!(
+                "use {}\n",
+                self.idents
+                    .iter()
+                    .map(|ident| ident.to_source())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            )
         } else {
             "".to_string()
         }
@@ -71,7 +78,7 @@ pub struct Definition {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Module {
-    pub env: Rc<Scope>
+    pub env: Rc<Scope>,
 }
 
 impl ToSource for File {
@@ -86,7 +93,9 @@ impl ToSource for File {
             exposition = format!("{}\n", exposition);
         }
 
-        let mut definitions = self.definitions.iter()
+        let mut definitions = self
+            .definitions
+            .iter()
             .map(|item| item.to_source())
             .collect::<Vec<String>>()
             .join("\n");
@@ -121,20 +130,25 @@ impl FromPair for File {
         let exposed_module = Rc::new(build_module(&exposition.idents, &definitions)?);
         // let imported_modules = fetch_modules(&import.idents)?;
 
-        Ok(
-            Rc::new(
-                Expr::File(
-                    File { import, exposition, expr, position, definitions, exposed_module, name }
-                )
-            )
-        )
+        Ok(Rc::new(Expr::File(File {
+            import,
+            exposition,
+            expr,
+            position,
+            definitions,
+            exposed_module,
+            name,
+        })))
     }
 }
 
-fn build_module(expositions: &[Rc<Ident>], definitions: &[Rc<Definition>]) -> Result<Module, Error> {
+fn build_module(
+    expositions: &[Rc<Ident>],
+    definitions: &[Rc<Definition>],
+) -> Result<Module, Error> {
     let mut env = vec![];
     for exposed in expositions {
-        if let Some(found_pair) = definitions.iter().find(|pair| pair.def.0 == exposed.label)  {
+        if let Some(found_pair) = definitions.iter().find(|pair| pair.def.0 == exposed.label) {
             env.push((exposed.label.clone(), found_pair.def.1.clone()));
         }
     }
@@ -156,7 +170,7 @@ impl Import {
             idents.push(Rc::new(ident.clone()))
         }
 
-        Ok(Import { idents, position  })
+        Ok(Import { idents, position })
     }
 }
 
@@ -170,7 +184,7 @@ impl Exposition {
             idents.push(Rc::new(ident.clone()))
         }
 
-        Ok(Exposition { idents, position  })
+        Ok(Exposition { idents, position })
     }
 }
 
@@ -187,7 +201,10 @@ impl Definition {
         Ok(Definition { def, position })
     }
 
-    fn try_many_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Vec<Rc<Definition>>, Error> {
+    fn try_many_from_pair(
+        pair: Pair<'_, Rule>,
+        context: &mut Context,
+    ) -> Result<Vec<Rc<Definition>>, Error> {
         let mut defintions = vec![];
 
         for def in pair.into_inner() {
@@ -219,45 +236,76 @@ fn expr_else_unit(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
         Expr::from_pair(ident, context)
     } else {
         print!("unit!!!!!!!");
-        Ok(Rc::new(Expr::Const(Const { value: ConstType::Unit, position })))
+        Ok(Rc::new(Expr::Const(Const {
+            value: ConstType::Unit,
+            position,
+        })))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execute::execute_sane;
-    use crate::parse::parse_sane;
+    use crate::execute::{execute_sane, execute_file};
+    use crate::parse::{parse_sane, parse_file};
 
     #[test]
     fn execute_let_in_2() {
-        let result = execute_sane("let a = 1 and let b = 2 in [a; b]").unwrap().to_source();
+        let result = execute_sane("let a = 1 and let b = 2 in [a; b]")
+            .unwrap()
+            .to_source();
+        assert_eq!(result, "[1.0; 2.0]");
+    }
+
+    // Define Prelude and enable dotted names
+
+    #[test]
+    fn execute_use_0() {
+        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let scope = &mut Scope::new();
+        let result = execute_file(
+            r#"
+        use (module_0)
+
+        let a = 1 and let b = 2 in [a; b]
+        
+        "#, context, scope
+        )
+        .unwrap()
+        .to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 
     #[test]
-    fn execute_use_0() {
-        let result = execute_sane(r#"
-        use Prelude
+    fn execute_use_1() {
+        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let scope = &mut Scope::new();
+        let result = parse_file(
+            r#"
+        use (module_0)
 
-        let a = 1 and let b = 2 in [a; b]
-        
-        "#).unwrap().to_source();
+        module_0.a
+
+        "#, context
+        )
+            .unwrap()
+            .to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 
     #[test]
     fn execute_namespace_0() {
-        let result = execute_sane(r#"
-        use Prelude
+        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let scope = &mut Scope::new();
+        let result = execute_file(
+            r#"
+        use (module_0)
         
-        let ......
-
-        nspace A give a
-            def a = 1
-
-        
-        "#).unwrap().to_source();
-        assert_eq!(result, "[1.0; 2.0]");
+        module_0.a
+        "#, context, scope
+        )
+        .unwrap()
+        .to_source();
+        assert_eq!(result, "1");
     }
 }

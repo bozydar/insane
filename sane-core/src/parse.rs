@@ -1,26 +1,27 @@
-use std::collections::HashMap;
-use pest::Span;
-use pest::iterators::Pair;
-use pest::error::InputLocation;
-use pest::prec_climber::{Assoc, Operator, PrecClimber};
-use std::rc::Rc;
-use std::fmt::{Debug};
 use lazy_static;
+use pest::error::InputLocation;
+use pest::iterators::Pair;
+use pest::prec_climber::{Assoc, Operator, PrecClimber};
+use pest::Span;
+use std::collections::HashMap;
+use std::fmt::Debug;
 use std::path;
+use std::rc::Rc;
 
-use crate::error::Error;
-use crate::let_in::LetIn;
-use crate::ident::Ident;
-use crate::const_expr::Const;
+use crate::binary::Binary;
 use crate::bind::Bind;
+use crate::build_in::BuildIn;
+use crate::const_expr::Const;
+use crate::context::Context;
+use crate::error::Error;
+use crate::file::File;
 use crate::fun::Fun;
+use crate::ident::Ident;
+use crate::ns_ident::NSIdent;
+use crate::if_then_else::IfThenElse;
+use crate::let_in::LetIn;
 use crate::list::List;
 use crate::pest::Parser;
-use crate::if_then_else::IfThenElse;
-use crate::build_in::BuildIn;
-use crate::binary::Binary;
-use crate::file::File;
-use crate::context::Context;
 
 pub trait ToSource {
     fn to_source(&self) -> String;
@@ -38,23 +39,26 @@ pub trait ExprEq {
 pub struct Position {
     pub start: usize,
     pub end: usize,
-    pub source: Rc<str>
+    pub source: Rc<str>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Selection {
     pub start: (usize, usize),
     pub end: (usize, usize),
-    pub source: Rc<str>
+    pub source: Rc<str>,
 }
 
 impl Selection {
     pub fn new(start: (usize, usize), end: (usize, usize), source: &str) -> Selection {
-        Selection { start, end, source: Rc::from(source) }
+        Selection {
+            start,
+            end,
+            source: Rc::from(source),
+        }
     }
 
     pub fn from_content(content: &str, position: &Position) -> Selection {
-
         fn count_nl_till_end(content: &str, end: usize) -> (usize, usize) {
             let mut count_nl = 1;
             let mut count_column = 1;
@@ -70,7 +74,7 @@ impl Selection {
             }
             (count_nl, count_column)
         }
-        
+
         let start = count_nl_till_end(content, position.start);
         let end = count_nl_till_end(content, position.end);
         Selection::new(start, end, &position.source)
@@ -82,7 +86,7 @@ impl Position {
         Position {
             start,
             end,
-            source: Rc::from(source)
+            source: Rc::from(source),
         }
     }
 
@@ -108,6 +112,7 @@ pub enum Expr {
     LetIn(LetIn),
     Const(Const),
     Ident(Ident),
+    NSIdent(NSIdent),
     Bind(Bind),
     Fun(Fun),
     List(List),
@@ -124,7 +129,7 @@ impl ExprEq for Expr {
             Expr::Const(const_) => const_.expr_eq(other),
             Expr::List(list) => list.expr_eq(other),
             Expr::Fun(fun) => fun.expr_eq(other),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -141,7 +146,7 @@ impl ToSource for Expr {
             Expr::Fun(fun) => fun.to_source(),
             Expr::Binary(binary) => binary.to_source(),
             Expr::File(file) => file.to_source(),
-            _ => format!("{:?}", self)
+            _ => format!("{:?}", self),
         }
     }
 }
@@ -159,7 +164,7 @@ impl FromPair for Expr {
             Rule::fun => Fun::from_pair(pair, context),
             Rule::list => List::from_pair(pair, context),
             // TODO Should be fixed when nspaces implemented
-            Rule::nspaced_ident => Ident::from_pair(pair, context),
+            Rule::ns_ident => NSIdent::from_pair(pair, context),
             Rule::if_then_else => IfThenElse::from_pair(pair, context),
             _ => {
                 let position: Position = Position::from_span(pair.as_span(), context);
@@ -176,9 +181,12 @@ pub fn parse_file(input: &str, context: &mut Context) -> ExprResult {
             if let Some(pair) = pairs.next() {
                 Expr::from_pair(pair, context)
             } else {
-                Err(Error::new("Cant't find any expression", &Position::new(1, 1, &context.source)))
+                Err(Error::new(
+                    "Can't find any expression",
+                    &Position::new(1, 1, &context.source),
+                ))
             }
-        },
+        }
         Err(err) => {
             let position = match err.location {
                 InputLocation::Pos(pos) => Position::new(pos, pos, &context.source),
@@ -195,7 +203,8 @@ pub fn parse_sane(input: &str) -> ExprResult {
 
 fn precedence_climber() -> PrecClimber<Rule> {
     PrecClimber::new(vec![
-        Operator::new(Rule::op_left_pipe, Assoc::Left) | Operator::new(Rule::op_right_pipe, Assoc::Right),
+        Operator::new(Rule::op_left_pipe, Assoc::Left)
+            | Operator::new(Rule::op_right_pipe, Assoc::Right),
         Operator::new(Rule::op_dollar, Assoc::Right),
     ])
 }
@@ -206,13 +215,9 @@ lazy_static! {
 
 pub fn climb(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
     let source = &*context.source.clone();
-    let primary = |pair| {
-        Expr::from_pair(pair, context)
-    };
+    let primary = |pair| Expr::from_pair(pair, context);
 
-    let build_binary = |lhs, op, rhs| {
-        Binary::new(op, lhs, rhs, source)
-    };
+    let build_binary = |lhs, op, rhs| Binary::new(op, lhs, rhs, source);
 
     PREC_CLIMBER.climb(pair.into_inner(), primary, build_binary)
 }
@@ -229,7 +234,9 @@ mod tests {
 
     #[test]
     fn parse_let_in_1() {
-        let result = parse_sane("let a = 1 and let b = 2 in [a; b]").unwrap().to_source();
+        let result = parse_sane("let a = 1 and let b = 2 in [a; b]")
+            .unwrap()
+            .to_source();
         assert_eq!(result, "let a = 1.0 and let b = 2.0 in [a; b]");
     }
 
@@ -248,14 +255,35 @@ mod tests {
     #[test]
     fn from_content_0() {
         let source = "a\nab\nabc\n";
-        
+
         let result = Selection::from_content(source, &Position::new(0, 1, "ADHOC"));
-        assert_eq!(result, Selection { start: (1, 1), end: (1, 2), source: Rc::from("ADHOC") });
+        assert_eq!(
+            result,
+            Selection {
+                start: (1, 1),
+                end: (1, 2),
+                source: Rc::from("ADHOC")
+            }
+        );
 
         let result = Selection::from_content(source, &Position::new(2, 3, "ADHOC"));
-        assert_eq!(result, Selection { start: (2, 1), end: (2, 2), source: Rc::from("ADHOC") });
+        assert_eq!(
+            result,
+            Selection {
+                start: (2, 1),
+                end: (2, 2),
+                source: Rc::from("ADHOC")
+            }
+        );
 
         let result = Selection::from_content(source, &Position::new(0, 7, "ADHOC"));
-        assert_eq!(result, Selection { start: (1, 1), end: (3, 3), source: Rc::from("ADHOC") });
+        assert_eq!(
+            result,
+            Selection {
+                start: (1, 1),
+                end: (3, 3),
+                source: Rc::from("ADHOC")
+            }
+        );
     }
 }

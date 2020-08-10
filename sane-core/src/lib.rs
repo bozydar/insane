@@ -11,6 +11,7 @@ pub mod build_in_functions;
 mod error;
 mod let_in;
 mod ident;
+mod ns_ident;
 mod const_expr;
 mod bind;
 mod fun;

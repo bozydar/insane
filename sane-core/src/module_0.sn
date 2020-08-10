@@ -1,1 +1,5 @@
-1
+give (a b c)
+
+def a = 1
+def b = 2
+def c = 3

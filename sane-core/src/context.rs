@@ -1,44 +1,42 @@
-use crate::ident::Ident;
-use core::cell::RefCell;
 use crate::error::Error;
-use crate::parse;
 use crate::file::File;
-use std::rc::Rc;
+use crate::ident::Ident;
+use crate::parse;
+use core::cell::RefCell;
 use std::collections::HashMap;
-use std::fs;
-use std::path;
 use std::env;
+use std::fs;
 use std::io::prelude::*;
+use std::path;
+use std::rc::Rc;
 
 pub type Path = String;
 
 #[derive(Debug)]
 pub struct Context {
     pub source: Rc<str>,
-    file_loader: Rc<RefCell<FileLoader>>
+    file_loader: Rc<RefCell<FileLoader>>,
 }
 
 impl Context {
     pub fn new(source: &str, look_path: &[&str]) -> Context {
         let file_loader = Rc::new(RefCell::new(FileLoader::new(look_path)));
-        Context { 
-            source: source.into(), 
-            file_loader
+        Context {
+            source: source.into(),
+            file_loader,
         }
     }
 
     pub fn from_new_source(&self, source: &str) -> Context {
-        Context { 
-            source: source.into(), 
-            file_loader: self.file_loader.clone()
+        Context {
+            source: source.into(),
+            file_loader: self.file_loader.clone(),
         }
     }
 
     pub fn source_name(&self) -> String {
         let path = path::Path::new(&*self.source);
-        path.file_stem()
-            .unwrap().to_str()
-            .unwrap().to_string()
+        path.file_stem().unwrap().to_str().unwrap().to_string()
     }
 
     pub fn load_file(&mut self, ident: &Ident) -> Result<Rc<File>, Error> {
@@ -50,7 +48,7 @@ impl Context {
 #[derive(Debug)]
 struct FileLoader {
     pub look_path: Vec<String>,
-    pub files: Vec<Rc<File>>
+    pub files: Vec<Rc<File>>,
 }
 
 impl FileLoader {
@@ -58,7 +56,8 @@ impl FileLoader {
         let mut look_path_ = vec![];
         // Add current dir as a starting one on path
         let current_dir = env::current_dir().unwrap().to_str().unwrap().to_owned();
-        look_path_.push(current_dir);
+        look_path_.push(current_dir.clone());
+        dbg!(current_dir);
         for path in look_path.iter() {
             let path = fs::canonicalize(path).unwrap();
             look_path_.push(path.to_str().unwrap().to_string())
@@ -68,11 +67,11 @@ impl FileLoader {
 
         FileLoader {
             look_path: look_path_,
-            files
+            files,
         }
     }
 
-    /// Let's assume for the very beginning that: 
+    /// Let's assume for the very beginning that:
     /// 0. All the modules will be described as absolute in the future
     /// 1. modules are files
     /// 2. Name of the module file's base name
@@ -85,10 +84,11 @@ impl FileLoader {
         if let Some(file) = self.find_in_files(module_name) {
             Ok(file)
         } else {
-            let path = self.find_in_path(module_name)
+            let path = self
+                .find_in_path(module_name)
                 .map_err(|err| Error::new(&err, &ident.position))?;
-            let content = FileLoader::read_content(&path)
-                .map_err(|err| Error::new(&err, &ident.position))?;
+            let content =
+                FileLoader::read_content(&path).map_err(|err| Error::new(&err, &ident.position))?;
             // TODO Can avoid such things when parsing to the direct type instead of Expr
             let context = &mut context.from_new_source(&path);
             let file = parse::parse_file(&content, context)?;
@@ -98,7 +98,7 @@ impl FileLoader {
                     self.files.push(file.clone());
                     Ok(file)
                 }
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         }
     }
@@ -109,31 +109,32 @@ impl FileLoader {
                 let mut content = String::new();
                 match file.read_to_string(&mut content) {
                     Ok(_) => Ok(content),
-                    Err(error) => Err(format!("{}", error))
+                    Err(error) => Err(format!("{}", error)),
                 }
-            },
-            Err(error) => Err(format!("{}", error))
+            }
+            Err(error) => Err(format!("{}", error)),
         }
     }
-
 
     fn find_in_path(&self, module_name: &str) -> Result<String, String> {
         for dir in self.look_path.iter() {
             let path = &path::Path::new(&*dir).join(format!("{}.sn", module_name));
             if path.exists() {
-                return Ok(path.to_str().unwrap().to_string())
+                return Ok(path.to_str().unwrap().to_string());
             }
         }
         let paths = self.look_path.join("\n");
-        Err(format!("Can't find module `{}` in paths `{}`", module_name, paths))
+        Err(format!(
+            "Can't find module `{}` in paths `{}`",
+            module_name, paths
+        ))
     }
 
     fn find_in_files(&self, module_name: &str) -> Option<Rc<File>> {
-        let a = self.files.iter()
-            .find(|file| &*file.name == module_name);
+        let a = self.files.iter().find(|file| &*file.name == module_name);
         match a {
             Some(file) => Some(file.clone()),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -142,20 +143,31 @@ impl FileLoader {
 mod tests {
     use super::*;
     use crate::execute::execute_sane;
-    use crate::parse::{parse_file, ToSource};
     use crate::file::File;
+    use crate::parse::{parse_file, ToSource};
 
-    // TODO Better tests in the proper firectory
+    // TODO Better tests in the proper directory
 
     #[test]
     fn load_0() {
         let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
-        let result = parse_file(r#"
-        use module_0
+        let result = parse_file(
+            r#"
+        use (module_0)
 
-        1"#, context).unwrap();
+        module_0.a"#,
+            context,
+        )
+        .unwrap();
+        // TODO Why I can't find `module_0.a` in the context even though
+        // it generates the source
         dbg!(&context);
 
-        assert_eq!(result.to_source(), "3.0")
+        assert_eq!(
+            result.to_source(),
+            r#"use module_0
+
+module_0.a"#
+        )
     }
 }

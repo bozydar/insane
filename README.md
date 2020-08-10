@@ -24,10 +24,10 @@
     is not accessible from Pair directly but `pest-2.1.2/src/position.rs:135` looks promising as copy/paste
 * REPL
   * hash to enter a command:
-    * #help - show shortcuts of editor
-    * #edit - open editor and then execute the code
-    * #reset-scope - clean scope
-    * #show-scope - list all the declared identifiers
+    * \#help - show shortcuts of editor
+    * \#edit - open editor and then execute the code
+    * \#reset-scope - clean scope
+    * \#show-scope - list all the declared identifiers
   * other text goes to executer BUT the scope ramains
   * "end" finishes "multiline" readline mode
 * left side application - DONE
@@ -52,7 +52,7 @@
 * struct 
 * pattern matching
 * types
-  * let map : (Int -> Int) -> \[Int\] -> \[Int\] 
+  * let map : (Int -> Int) -> \[Int\] -> \[Int\]
   * let map : (Int>Int>Fn) > (Int>List) > (Int>List) > Fn = fun fn list => ..
   
   

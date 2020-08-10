@@ -52,6 +52,9 @@ pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Scope) -> ExprResult {
             Expr::Ident(ident) => {
                 (Some(ident.position.clone()), ident.execute(stack))
             }
+            Expr::NSIdent(ns_ident) => {
+                (Some(ns_ident.position.clone()), ns_ident.execute(stack))
+            }
             Expr::Bind(bind) => {
                 (Some(bind.position.clone()), bind.execute(stack))
             }
