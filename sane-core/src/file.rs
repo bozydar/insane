@@ -22,7 +22,7 @@ impl ToSource for Import {
     fn to_source(&self) -> String {
         if !self.idents.is_empty() {
             format!(
-                "use {}\n",
+                "use ({})\n",
                 self.idents
                     .iter()
                     .map(|ident| ident.to_source())
@@ -41,11 +41,19 @@ pub struct Exposition {
     pub position: Position,
 }
 
+impl Exposition {
+    pub fn is_exposed(&self, label: &str) -> bool {
+        self.idents.iter().any(|ident| {
+            ident.label == label
+        })
+    }
+}
+
 impl ToSource for Exposition {
     fn to_source(&self) -> String {
         if !self.idents.is_empty() {
             format!(
-                "use {}\n",
+                "give ({})\n",
                 self.idents
                     .iter()
                     .map(|ident| ident.to_source())
@@ -223,8 +231,25 @@ impl ToSource for Definition {
 }
 
 impl Execute for File {
-    fn execute(&self, stack: &mut Scope) -> ExprResult {
-        execute(self.expr.clone(), stack)
+    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
+        execute(self.expr.clone(), stack, context)
+    }
+}
+
+impl File {
+    pub fn execute_exposed(&self, scope: &mut Scope, context: &Context, ident: &Ident) -> ExprResult {
+        if let Some(definition) = self.definitions.iter().cloned()
+            .find(|definition| {
+                let a = *definition.def.0 == ident.label;
+                a
+            }) {
+            Ok(definition.def.1.clone())
+        } else {
+            Error::new(
+                &format!("Can't find definition of `{}`", ident.to_source()),
+                &ident.position
+            ).into()
+        }
     }
 }
 
@@ -248,6 +273,7 @@ mod tests {
     use super::*;
     use crate::execute::{execute_sane, execute_file};
     use crate::parse::{parse_sane, parse_file};
+    use std::borrow::Borrow;
 
     #[test]
     fn execute_let_in_2() {
@@ -269,15 +295,31 @@ mod tests {
 
         let a = 1 and let b = 2 in [a; b]
         
-        "#, context, scope
+        "#, context, scope,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 
     #[test]
     fn execute_use_1() {
+        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let scope = &mut Scope::new();
+        let result = execute_file(
+            r#"
+        use (module_0)
+
+        [module_0.a; module_0.b]
+        "#, context, scope
+        )
+            .unwrap()
+            .to_source();
+        assert_eq!(result, "[1.0; 2.0]");
+    }
+
+    #[test]
+    fn execute_use_2() {
         let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
         let scope = &mut Scope::new();
         let result = parse_file(
@@ -286,26 +328,30 @@ mod tests {
 
         module_0.a
 
-        "#, context
+        "#, context,
         )
-            .unwrap()
-            .to_source();
-        assert_eq!(result, "[1.0; 2.0]");
+            .unwrap();
+        dbg!(result);
+        // assert_eq!(result, "[1.0; 2.0]");
     }
 
     #[test]
-    fn execute_namespace_0() {
-        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+    fn execute_exposed_0() {
+        let context = &mut Context::new(r#"ADHOC"#, &[]);
         let scope = &mut Scope::new();
-        let result = execute_file(
+        let expr = parse_file(
             r#"
-        use (module_0)
-        
-        module_0.a
-        "#, context, scope
-        )
-        .unwrap()
-        .to_source();
-        assert_eq!(result, "1");
+            give (a)
+
+            def a = 1
+            def b = fun x => x
+        "#, context).unwrap();
+        let ident = Ident { label: String::from("a"), position: Position::new(0, 0, "a") };
+        let result =
+            match expr.borrow() {
+                Expr::File(file) => file.execute_exposed(scope, context, &ident),
+                _ => panic!("{:?} is not a File", expr)
+            }.unwrap();
+        assert_eq!(result.to_source(), "1.0");
     }
 }

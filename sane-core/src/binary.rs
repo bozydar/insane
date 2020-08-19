@@ -77,7 +77,7 @@ impl Binary {
 }
 
 impl Execute for Binary {
-    fn execute(&self, stack: &mut Scope) -> ExprResult {
+    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
         // TODO it is rather ineficient but need a "postparsing" phase to optimize it
         // In such phase all the Binary expression could be replaced with Bind so I couldn't
         // do it every time a binary is called
@@ -121,7 +121,7 @@ impl Execute for Binary {
                 }
             };
 
-        bind.execute(stack)
+        bind.execute(stack, context)
     }
 }
 

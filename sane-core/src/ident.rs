@@ -34,7 +34,7 @@ impl FromPair for Ident {
 }
 
 impl Execute for Ident {
-    fn execute(&self, stack: &mut Scope) -> ExprResult {
+    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
         if let Some((_, expr)) = stack.iter().rev().find(|item| { &item.0 == &self.label }) {
             Ok(expr.clone())
         } else {

@@ -140,6 +140,7 @@ impl ToSource for Expr {
             Expr::LetIn(let_in) => let_in.to_source(),
             Expr::Const(const_) => const_.to_source(),
             Expr::Ident(ident) => ident.to_source(),
+            Expr::NSIdent(ns_ident) => ns_ident.to_source(),
             Expr::Bind(bind) => bind.to_source(),
             Expr::List(list) => list.to_source(),
             Expr::IfThenElse(if_then_else) => if_then_else.to_source(),
@@ -163,7 +164,6 @@ impl FromPair for Expr {
             Rule::bind => Bind::from_pair(pair, context),
             Rule::fun => Fun::from_pair(pair, context),
             Rule::list => List::from_pair(pair, context),
-            // TODO Should be fixed when nspaces implemented
             Rule::ns_ident => NSIdent::from_pair(pair, context),
             Rule::if_then_else => IfThenElse::from_pair(pair, context),
             _ => {

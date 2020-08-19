@@ -55,8 +55,8 @@ impl FromPair for Bind {
 }
 
 impl Execute for Bind {
-    fn execute(&self, stack: &mut Scope) -> ExprResult {
-        fn build_curry_or_execute(current_args: Vec<Rc<Expr>>, current_fun: Rc<Expr>, position: &Position, stack: &mut Scope) -> ExprResult {
+    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
+        fn build_curry_or_execute(current_args: Vec<Rc<Expr>>, current_fun: Rc<Expr>, position: &Position, stack: &mut Scope, context: &Context) -> ExprResult {
             let (arity, name) = match &*current_fun {
                 Expr::Fun(fun) => (fun.params.len(), "__custom__".to_string()),
                 Expr::BuildIn(build_in) => (build_in.arity, build_in.name.clone()),
@@ -81,7 +81,7 @@ impl Execute for Bind {
                         for i in 0..params.len() {
                             env.push((params[i].clone(), current_args[i].clone()));
                         }
-                        execute(body.clone(), env)
+                        execute(body.clone(), env, context)
                     }
                     Expr::BuildIn(build_in) => {
                         let f: BuildInFun = build_in.fun;
@@ -129,11 +129,11 @@ impl Execute for Bind {
         // evaluate arguments
         let mut arg_results = vec![];
         for arg in self.args.iter() {
-            arg_results.push(execute(arg.clone(), stack)?);
+            arg_results.push(execute(arg.clone(), stack, context)?);
         }
         // println!("{:?}", fun.clone());
-        let fun = execute(self.fun.clone(), stack)?;
-        build_curry_or_execute(arg_results, fun, &self.position, stack)
+        let fun = execute(self.fun.clone(), stack, context)?;
+        build_curry_or_execute(arg_results, fun, &self.position, stack, context)
     }
 }
 

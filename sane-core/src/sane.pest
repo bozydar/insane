@@ -18,7 +18,7 @@ char = _{
     | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
 
-ns_ident = { ident ~ WHITESPACE* ~ "." ~ WHITESPACE* ~ ident }
+ns_ident = { ident ~ "." ~ ident }
 ident = @{  !(keywords~ WHITESPACE*) ~ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )* }
 
 let_in = { "let" ~ ident_expr ~ ("and" ~ "let" ~ ident_expr)*  ~ "in" ~ expr }
@@ -39,7 +39,7 @@ field_value = { ident ~ ":" ~ expr }
 if_then_else = { "if" ~ expr ~ "then" ~ expr ~ "else" ~ expr }
 
 expr = _{ infix | let_in | fun | bind | if_then_else |  term }
-term = _{  "(" ~ expr ~ ")" | structure | list | ns_ident | constant }
+term = _{  "(" ~ expr ~ ")" | structure | list | ns_ident | ident | constant }
 constant = { number | string_quoted }
 file = { SOI ~ import ~ expression ~ exposition ~ definitions ~ EOI }
 

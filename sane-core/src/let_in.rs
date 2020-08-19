@@ -45,7 +45,7 @@ impl FromPair for LetIn {
 }
 
 impl Execute for LetIn {
-    fn execute(&self, stack: &mut Scope) -> ExprResult {
+    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
         
         let let_in = self.clone();
 
@@ -56,7 +56,7 @@ impl Execute for LetIn {
             // execute all the R-expressions
             // and put functions on the side for further analysis
             for (ident, expr) in let_in.lets.iter().cloned() {
-                let expr = execute(expr, stack)?;
+                let expr = execute(expr, stack, context)?;
 
                 if let Expr::Fun(_) = *expr {
                     functions.push((ident.clone(), expr.clone()))
@@ -85,7 +85,7 @@ impl Execute for LetIn {
             // put all the declaration on the stack
             pushed += to_append.len();
             stack.append(&mut to_append);
-            let result = execute(let_in.in_part, stack);
+            let result = execute(let_in.in_part, stack, context);
             stack.truncate(stack.len() - pushed);
             result
     }

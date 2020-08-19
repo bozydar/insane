@@ -9,6 +9,10 @@ use std::fs;
 use std::io::prelude::*;
 use std::path;
 use std::rc::Rc;
+use crate::parse::Expr;
+use std::borrow::Borrow;
+use crate::ns_ident::NSIdent;
+use crate::build_in_functions::build_in_functions;
 
 pub type Path = String;
 
@@ -42,6 +46,29 @@ impl Context {
     pub fn load_file(&mut self, ident: &Ident) -> Result<Rc<File>, Error> {
         let mut file_loader = self.file_loader.borrow_mut();
         file_loader.load(ident, self)
+    }
+
+    pub fn expr_by_ns_ident(&self, ns_ident: &NSIdent) -> Result<Rc<Expr>, Error> {
+        if let Some(found_file) = self.file_loader
+            .borrow_mut()
+            .find_in_files(&ns_ident.nspace) {
+            let scope = &mut build_in_functions();
+            // TODO The problem is that "self" context is context of file which calls the module
+            // but we don't have the contexts of the called module/file.
+            // Looks like File should keep `source: Rc<str>` as well to create Context
+            // Not sure if Context should keep sources...
+            let ref context = Context::new(&*ns_ident.position.source, &[]);
+            let ref ident = Ident {
+                label: ns_ident.label.clone(),
+                position: ns_ident.position.clone()
+            };
+            (*found_file).execute_exposed(scope, context, ident)
+        } else {
+            Error::new(
+                &format!("Can't find module {}", &ns_ident.nspace),
+                &ns_ident.position
+            ).into()
+        }
     }
 }
 
@@ -130,7 +157,7 @@ impl FileLoader {
         ))
     }
 
-    fn find_in_files(&self, module_name: &str) -> Option<Rc<File>> {
+    pub fn find_in_files(&self, module_name: &str) -> Option<Rc<File>> {
         let a = self.files.iter().find(|file| &*file.name == module_name);
         match a {
             Some(file) => Some(file.clone()),
@@ -165,7 +192,7 @@ mod tests {
 
         assert_eq!(
             result.to_source(),
-            r#"use module_0
+            r#"use (module_0)
 
 module_0.a"#
         )

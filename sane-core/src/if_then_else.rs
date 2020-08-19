@@ -41,12 +41,12 @@ impl FromPair for IfThenElse {
 }
 
 impl Execute for IfThenElse {
-    fn execute(&self, stack: &mut Scope) -> ExprResult {
-        let result = execute(self.cond.clone(), stack)?;
+    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
+        let result = execute(self.cond.clone(), stack, context)?;
         if let Expr::Const(Const { value: ConstType::Bool(true), .. }) = *result {
-            execute(self.then.clone(), stack)
+            execute(self.then.clone(), stack, context)
         } else {
-            execute(self.otherwise.clone(), stack)
+            execute(self.otherwise.clone(), stack, context)
         }
     }
 }

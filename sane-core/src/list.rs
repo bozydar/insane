@@ -33,11 +33,11 @@ impl FromPair for List {
 }
 
 impl Execute for List {
-    fn execute(&self, stack: &mut Scope) -> ExprResult {
+    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
         let mut result: Vec<Rc<Expr>> = vec![];
         // let items = items.clone();
         for item in self.items.iter() {
-            let item = execute(item.clone(), stack)?;
+            let item = execute(item.clone(), stack, context)?;
             result.push(item);
         }
         Ok(Rc::new(Expr::List(List { items: result, position: self.position.clone() })))
@@ -51,8 +51,6 @@ impl ExprEq for List {
                 .zip(other.items.iter())
                 .all(|(left, right)| left.expr_eq(right)),
             _ => false
-
         }
-       
     }
 }

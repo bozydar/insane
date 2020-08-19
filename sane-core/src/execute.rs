@@ -7,7 +7,7 @@ use crate::file::File;
 use crate::ident::Ident;
 
 pub trait Execute {
-    fn execute(&self, stack: &mut Scope) -> ExprResult;
+    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult;
 }
 
 pub(crate) struct ScopeContext {
@@ -25,47 +25,48 @@ pub type Scope = Vec<(String, Rc<Expr>)>;
 pub fn execute_sane(input: &str) -> ExprResult {
     let expr = parse_sane(input)?;
     let stack = &mut build_in_functions();
-    execute(expr, stack)
+    let context = Context::new(input, &[]);
+    execute(expr, stack, &context)
 }
 
 pub fn execute_file(input: &str, context: &mut Context, stack: &mut Scope) -> ExprResult {
     let expr = parse_file(input, context)?;
     // println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
-    let result = execute(expr, stack)?;
+    let result = execute(expr, stack, context)?;
     Ok(result)
 }
 
 // TODO: Check if it possible to impl Execute for Rc<T> where T: Expr + Execute
-pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Scope) -> ExprResult {
+pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Scope, context: &Context) -> ExprResult {
     // println!("Executing: {:?}", expr);
     // println!("Stack: {}", stack_to_string(stack));
     let pre_result = 
         match &*expr {
             Expr::File(file) => {
-                (Some(file.position.clone()), file.execute(stack))
+                (Some(file.position.clone()), file.execute(stack, context))
             }
             Expr::LetIn(let_in) => {
-                (Some(let_in.position.clone()), let_in.execute(stack))
+                (Some(let_in.position.clone()), let_in.execute(stack, context))
             }
             // TODO implement nspaced_ident the way it fetches the module and func
             // Think how to handle Scope in module
             Expr::Ident(ident) => {
-                (Some(ident.position.clone()), ident.execute(stack))
+                (Some(ident.position.clone()), ident.execute(stack, context))
             }
             Expr::NSIdent(ns_ident) => {
-                (Some(ns_ident.position.clone()), ns_ident.execute(stack))
+                (Some(ns_ident.position.clone()), ns_ident.execute(stack, context))
             }
             Expr::Bind(bind) => {
-                (Some(bind.position.clone()), bind.execute(stack))
+                (Some(bind.position.clone()), bind.execute(stack, context))
             }
             Expr::Binary(binary) => {
-                (Some(binary.position.clone()), binary.execute(stack))
+                (Some(binary.position.clone()), binary.execute(stack, context))
             }
             Expr::IfThenElse(if_then_else) => {
-                (Some(if_then_else.position.clone()), if_then_else.execute(stack))
+                (Some(if_then_else.position.clone()), if_then_else.execute(stack, context))
             }
             Expr::List(list) => {
-                (Some(list.position.clone()), list.execute(stack))
+                (Some(list.position.clone()), list.execute(stack, context))
             }
             Expr::Fun(fun) => {
                 // Can't implement it inside impl Execute for Fun because I would need to clone

@@ -43,13 +43,18 @@ impl FromPair for NSIdent {
 }
 
 impl Execute for NSIdent {
-    fn execute(&self, stack: &mut Scope) -> ExprResult {
+    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
         dbg!(stack.clone());
-        if let Some((_, expr)) = stack.iter().rev().find(|item| { &item.0 == &self.label }) {
-            Ok(expr.clone())
-        } else {
-            // Err(format!("Ident `{}` not found: {}", ident, stack_to_string(stack)))
-            Error::new(&format!("Ident `{}` not found", self.to_source()), &self.position).into()
-        }
+        // TODO Introduce to Context execute method which will find the file by nspace
+        // and return the expression designed by identifier
+
+        context.expr_by_ns_ident(self)
+        // context
+        // if let Some((_, expr)) = stack.iter().rev().find(|item| { &item.0 == &self.label }) {
+        //     Ok(expr.clone())
+        // } else {
+        //     // Err(format!("Ident `{}` not found: {}", ident, stack_to_string(stack)))
+        //     Error::new(&format!("NSIdent `{}` not found", self.to_source()), &self.position).into()
+        // }
     }
 }
