@@ -27,7 +27,7 @@ pub fn build_in_functions() -> Scope {
         create_build_in("/".to_string(), sane_div, 2),
         create_build_in("print".to_string(), sane_print, 1),
         ("true".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(true), position: position.clone()}))),
-        ("false".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(false), position: position}))),
+        ("false".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(false), position}))),
     ]
 }
 

@@ -5,7 +5,6 @@ use crate::execute::{Scope, Execute};
 use pest::iterators::{Pair};
 use crate::ident::Ident;
 use crate::bind::Bind;
-use crate::binary::Operator::Slash;
 
 // The binary Expr is done only to allow ToSource() working fine. I could use just Bind expr
 // to make too. Anyway it is important to have: source -> Parser -> source flow working
@@ -75,7 +74,7 @@ impl ToSource for Binary {
 
 impl Binary {
     // TODO it is not a constructor of binary so it should have different name
-    pub fn new(operator: Pair<'_, Rule>, left: ExprResult, right: ExprResult, source: &str) -> ExprResult {
+    pub fn build_expr(operator: Pair<'_, Rule>, left: ExprResult, right: ExprResult, source: &str) -> ExprResult {
         let span = operator.as_span();
         let position = Position::new(span.start(), span.end(), source);
         Ok(

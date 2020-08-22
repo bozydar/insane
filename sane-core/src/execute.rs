@@ -1,26 +1,17 @@
 use std::rc::Rc;
-use crate::parse::{Expr, ExprResult, parse_sane, parse_file, ToSource, Position};
+use crate::parse::{Expr, ExprResult, parse_sane, parse_file, ToSource};
 use crate::context::Context;
 use std::cell::RefCell;
 use crate::build_in_functions::build_in_functions;
-use crate::file::File;
-use crate::ident::Ident;
+
 
 pub trait Execute {
     fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult;
 }
 
-pub(crate) struct ScopeContext {
-    files: Vec<Rc<File>>
-}
 
-impl ScopeContext {
-    pub fn parse_file(ident: &Ident) -> File {
-        unimplemented!()
-    }
-}
-
-pub type Scope = Vec<(String, Rc<Expr>)>;
+type Variable = (String, Rc<Expr>);
+pub type Scope = Vec<Variable>;
 
 pub fn execute_sane(input: &str) -> ExprResult {
     let expr = parse_sane(input)?;
@@ -82,13 +73,14 @@ pub(crate) fn execute(expr: Rc<Expr>, stack: &mut Scope, context: &Context) -> E
     match pre_result {
         (Some(position), Err(mut error)) => {
             error.push_backtrace_item(&position);
-            Err(error.clone())
+            Err(error)
         },
         (_, result) => result
     }
 }
 
-fn stack_to_string(stack: &Scope) -> String {
+#[allow(dead_code)]
+fn stack_to_string(stack: &[(String, Rc<Expr>)]) -> String {
     stack.iter().map(|item| {
         format!("{} = {}", item.0, item.1.to_source())
     }).collect::<Vec<String>>().join("\n")

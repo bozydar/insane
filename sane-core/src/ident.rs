@@ -28,14 +28,14 @@ impl Ident {
 
 impl FromPair for Ident {
     fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let position = Position::from_span(pair.as_span(), context);
+        let _position = Position::from_span(pair.as_span(), context);
         Ok(Rc::new(Expr::Ident(Ident::try_from_pair(pair, context)?)))
     }
 }
 
 impl Execute for Ident {
-    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
-        if let Some((_, expr)) = stack.iter().rev().find(|item| { &item.0 == &self.label }) {
+    fn execute(&self, stack: &mut Scope, _context: &Context) -> ExprResult {
+        if let Some((_, expr)) = stack.iter().rev().find(|item| { item.0 == self.label }) {
             Ok(expr.clone())
         } else {
             // Err(format!("Ident `{}` not found: {}", ident, stack_to_string(stack)))

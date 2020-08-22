@@ -25,10 +25,6 @@ impl PartialEq for BuildIn {
     fn eq(&self, other: &Self) -> bool {
         self.name.eq(&other.name)
     }
-
-    fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
-    }
 }
 
 impl ToSource for BuildIn {

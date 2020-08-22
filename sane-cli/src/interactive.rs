@@ -10,7 +10,6 @@ use rustyline::{Cmd, CompletionType, Config, Context, EditMode, Editor, KeyPress
 use rustyline_derive::Helper;
 
 use sane_core::build_in_functions::build_in_functions;
-use sane_core::parse;
 use sane_core::context;
 
 #[derive(Helper)]

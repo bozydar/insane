@@ -4,7 +4,6 @@ use crate::error::Error;
 use crate::ident::Ident;
 use crate::parse::{Expr, ExprResult, FromPair, Position, Rule, ToSource};
 use pest::iterators::Pair;
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::execute::{execute, Execute, Scope};
@@ -163,10 +162,6 @@ fn build_module(
     Ok(Module { env: Rc::new(env) })
 }
 
-fn fetch_modules(imports: &[Rc<Ident>]) -> Result<Vec<Rc<Module>>, Error> {
-    unimplemented!()
-}
-
 impl Import {
     fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Import, Error> {
         let position = Position::from_span(pair.as_span(), context);
@@ -237,11 +232,10 @@ impl Execute for File {
 }
 
 impl File {
-    pub fn execute_exposed(&self, scope: &mut Scope, context: &Context, ident: &Ident) -> ExprResult {
+    pub fn execute_exposed(&self, _scope: &mut Scope, _context: &Context, ident: &Ident) -> ExprResult {
         if let Some(definition) = self.definitions.iter().cloned()
             .find(|definition| {
-                let a = *definition.def.0 == ident.label;
-                a
+                *definition.def.0 == ident.label
             }) {
             Ok(definition.def.1.clone())
         } else {
@@ -272,7 +266,7 @@ fn expr_else_unit(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
 mod tests {
     use super::*;
     use crate::execute::{execute_sane, execute_file};
-    use crate::parse::{parse_sane, parse_file};
+    use crate::parse::parse_file;
     use std::borrow::Borrow;
 
     #[test]
@@ -321,7 +315,6 @@ mod tests {
     #[test]
     fn execute_use_2() {
         let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
-        let scope = &mut Scope::new();
         let result = parse_file(
             r#"
         use (module_0)

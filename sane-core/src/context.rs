@@ -3,14 +3,12 @@ use crate::file::File;
 use crate::ident::Ident;
 use crate::parse;
 use core::cell::RefCell;
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::prelude::*;
 use std::path;
 use std::rc::Rc;
 use crate::parse::Expr;
-use std::borrow::Borrow;
 use crate::ns_ident::NSIdent;
 use crate::build_in_functions::build_in_functions;
 
@@ -57,12 +55,12 @@ impl Context {
             // but we don't have the contexts of the called module/file.
             // Looks like File should keep `source: Rc<str>` as well to create Context
             // Not sure if Context should keep sources...
-            let ref context = Context::new(&*ns_ident.position.source, &[]);
-            let ref ident = Ident {
+            let context = Context::new(&*ns_ident.position.source, &[]);
+            let ident = Ident {
                 label: ns_ident.label.clone(),
                 position: ns_ident.position.clone()
             };
-            (*found_file).execute_exposed(scope, context, ident)
+            (*found_file).execute_exposed(scope, &context, &ident)
         } else {
             Error::new(
                 &format!("Can't find module {}", &ns_ident.nspace),
@@ -169,8 +167,6 @@ impl FileLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execute::execute_sane;
-    use crate::file::File;
     use crate::parse::{parse_file, ToSource};
 
     // TODO Better tests in the proper directory

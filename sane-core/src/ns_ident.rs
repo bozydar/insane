@@ -37,7 +37,7 @@ impl NSIdent {
 
 impl FromPair for NSIdent {
     fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let position = Position::from_span(pair.as_span(), context);
+        let _position = Position::from_span(pair.as_span(), context);
         Ok(Rc::new(Expr::NSIdent(NSIdent::try_from_pair(pair, context)?)))
     }
 }

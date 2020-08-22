@@ -1,11 +1,8 @@
-use lazy_static;
 use pest::error::InputLocation;
 use pest::iterators::Pair;
 use pest::prec_climber::{Assoc, Operator, PrecClimber};
 use pest::Span;
-use std::collections::HashMap;
 use std::fmt::Debug;
-use std::path;
 use std::rc::Rc;
 
 use crate::binary::Binary;
@@ -221,9 +218,9 @@ pub fn climb(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
     let source = &*context.source.clone();
     let primary = |pair| Expr::from_pair(pair, context);
 
-    let build_binary = |lhs, op, rhs| Binary::new(op, lhs, rhs, source);
+    let binary_expr = |lhs, op, rhs| Binary::build_expr(op, lhs, rhs, source);
 
-    PREC_CLIMBER.climb(pair.into_inner(), primary, build_binary)
+    PREC_CLIMBER.climb(pair.into_inner(), primary, binary_expr)
 }
 
 #[cfg(test)]
