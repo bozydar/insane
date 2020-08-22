@@ -41,7 +41,8 @@
     * referencing uses the prefix. No submodules for now.
     * can't access not opened module
   ```
-  module iter with map, count 
+  give (map count each)
+  
   def map = fun ...
   def count = fun ...
   def each = fun ...
@@ -55,6 +56,8 @@
   * let map : (Int -> Int) -> \[Int\] -> \[Int\]
   * let map : (Int>Int>Fn) > (Int>List) > (Int>List) > Fn = fun fn list => ..
   
+* Garbage collector:
+https://github.com/Others/shredder
   
 ```
 type List(Item) = struct 
@@ -69,7 +72,7 @@ type ListOfInt = alias
   List(Integer)
   
 type Eq(Item) = trait
-  def eq: Item -> Bool
+  def eq: Item -> Bool 
 
 type PartEq(Item) = trait
   def geq: Item -> Bool

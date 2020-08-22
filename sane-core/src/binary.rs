@@ -5,6 +5,7 @@ use crate::execute::{Scope, Execute};
 use pest::iterators::{Pair};
 use crate::ident::Ident;
 use crate::bind::Bind;
+use crate::binary::Operator::Slash;
 
 // The binary Expr is done only to allow ToSource() working fine. I could use just Bind expr
 // to make too. Anyway it is important to have: source -> Parser -> source flow working
@@ -21,12 +22,20 @@ pub struct Binary {
 pub enum Operator {
     LeftPipe,
     RightPipe,
-    Dollar
+    Dollar,
+    Plus,
+    Minus,
+    Star,
+    Slash
 }
 
 pub(crate) const LEFT_PIPE: &str= "|>";
 pub(crate) const RIGHT_PIPE: &str= "<|";
 pub(crate) const DOLLAR: &str = "$";
+pub(crate) const PLUS: &str = "+";
+pub(crate) const MINUS: &str = "-";
+pub(crate) const STAR: &str = "*";
+pub(crate) const SLASH: &str = "/";
 
 impl From<&str> for Operator {
     fn from(s: &str) -> Operator {
@@ -34,6 +43,10 @@ impl From<&str> for Operator {
             LEFT_PIPE => Operator::LeftPipe,
             RIGHT_PIPE => Operator::RightPipe,
             DOLLAR => Operator::Dollar,
+            PLUS => Operator::Plus,
+            MINUS => Operator::Minus,
+            STAR => Operator::Star,
+            SLASH => Operator::Slash,
             _ => unreachable!("Don't know symbol `{}`", s)
         }
     }
@@ -45,6 +58,10 @@ impl ToSource for Operator {
             Operator::LeftPipe => LEFT_PIPE.to_string(),
             Operator::RightPipe => RIGHT_PIPE.to_string(),
             Operator::Dollar => DOLLAR.to_string(),
+            Operator::Plus => PLUS.to_string(),
+            Operator::Minus => MINUS.to_string(),
+            Operator::Star => STAR.to_string(),
+            Operator::Slash => SLASH.to_string(),
         }
     }
 }
@@ -118,7 +135,7 @@ impl Execute for Binary {
                         fun,
                         position: self.position.clone()
                     }
-                }
+                },
             };
 
         bind.execute(stack, context)
@@ -163,8 +180,44 @@ mod tests {
     }
 
     #[test]
+    fn test_execute_binary_3() {
+        let result = &*execute_sane("1 |> inc |> add <| inc <| inc <| 1").unwrap().to_source();
+        assert_eq!(result, "5.0");
+    }
+
+    #[test]
     fn test_execute_binary_curry_0() {
         let result = &*execute_sane("inc <| print <| inc <| inc <| 1").unwrap().to_source();
         assert_eq!(result, "4.0");
+    }
+
+    #[test]
+    fn test_execute_binary_operations_0() {
+        let result = &*execute_sane("2 + 3 * 4").unwrap().to_source();
+        assert_eq!(result, "14.0");
+    }
+
+    #[test]
+    fn test_execute_binary_operations_1() {
+        let result = &*execute_sane("2 * 2 + 3").unwrap().to_source();
+        assert_eq!(result, "7.0");
+    }
+
+    #[test]
+    fn test_execute_binary_operations_2() {
+        let result = &*execute_sane("3 + 2 / 2").unwrap().to_source();
+        assert_eq!(result, "4.0");
+    }
+
+    #[test]
+    fn test_execute_binary_operations_3() {
+        let result = &*execute_sane("(2 + 3) * 4").unwrap().to_source();
+        assert_eq!(result, "20.0");
+    }
+
+    #[test]
+    fn test_execute_binary_operations_4() {
+        let result = &*execute_sane("(3 + 2) / 2").unwrap().to_source();
+        assert_eq!(result, "2.5");
     }
 }

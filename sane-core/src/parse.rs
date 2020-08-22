@@ -206,6 +206,10 @@ fn precedence_climber() -> PrecClimber<Rule> {
         Operator::new(Rule::op_left_pipe, Assoc::Left)
             | Operator::new(Rule::op_right_pipe, Assoc::Right),
         Operator::new(Rule::op_dollar, Assoc::Right),
+        Operator::new(Rule::op_plus, Assoc::Left)
+            | Operator::new(Rule::op_minus, Assoc::Left),
+        Operator::new(Rule::op_star, Assoc::Left)
+            | Operator::new(Rule::op_slash, Assoc::Left),
     ])
 }
 
@@ -262,7 +266,7 @@ mod tests {
             Selection {
                 start: (1, 1),
                 end: (1, 2),
-                source: Rc::from("ADHOC")
+                source: Rc::from("ADHOC"),
             }
         );
 
@@ -272,7 +276,7 @@ mod tests {
             Selection {
                 start: (2, 1),
                 end: (2, 2),
-                source: Rc::from("ADHOC")
+                source: Rc::from("ADHOC"),
             }
         );
 
@@ -282,7 +286,7 @@ mod tests {
             Selection {
                 start: (1, 1),
                 end: (3, 3),
-                source: Rc::from("ADHOC")
+                source: Rc::from("ADHOC"),
             }
         );
     }

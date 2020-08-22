@@ -18,6 +18,13 @@ pub fn build_in_functions() -> Scope {
         create_build_in("count".to_string(), sane_count, 1),
         create_build_in("concat".to_string(), sane_concat, 2),
         create_build_in("add".to_string(), sane_add, 2),
+        create_build_in("+".to_string(), sane_add, 2),
+        create_build_in("sub".to_string(), sane_sub, 2),
+        create_build_in("-".to_string(), sane_sub, 2),
+        create_build_in("mul".to_string(), sane_mul, 2),
+        create_build_in("*".to_string(), sane_mul, 2),
+        create_build_in("div".to_string(), sane_div, 2),
+        create_build_in("/".to_string(), sane_div, 2),
         create_build_in("print".to_string(), sane_print, 1),
         ("true".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(true), position: position.clone()}))),
         ("false".to_string(), Rc::new(Expr::Const(Const{ value: ConstType::Bool(false), position: position}))),
@@ -110,6 +117,42 @@ fn sane_add(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let right = &*params.get(1).unwrap().clone();
     if let (Expr::Const(Const {value: ConstType::Numeric(left), ..}), Expr::Const(Const {value: ConstType::Numeric(right), ..})) = (left, right) {
         Ok(Rc::new(Expr::Const(Const{ value: ConstType::Numeric(left + right), position: position.clone()})))
+    } else {
+        unreachable!()
+    }
+}
+
+fn sane_sub(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
+    let params = validate("sub", params, position, vec!["Numeric", "Numeric"])?;
+
+    let left = &*params.get(0).unwrap().clone();
+    let right = &*params.get(1).unwrap().clone();
+    if let (Expr::Const(Const {value: ConstType::Numeric(left), ..}), Expr::Const(Const {value: ConstType::Numeric(right), ..})) = (left, right) {
+        Ok(Rc::new(Expr::Const(Const{ value: ConstType::Numeric(left - right), position: position.clone()})))
+    } else {
+        unreachable!()
+    }
+}
+
+fn sane_mul(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
+    let params = validate("mul", params, position, vec!["Numeric", "Numeric"])?;
+
+    let left = &*params.get(0).unwrap().clone();
+    let right = &*params.get(1).unwrap().clone();
+    if let (Expr::Const(Const {value: ConstType::Numeric(left), ..}), Expr::Const(Const {value: ConstType::Numeric(right), ..})) = (left, right) {
+        Ok(Rc::new(Expr::Const(Const{ value: ConstType::Numeric(left * right), position: position.clone()})))
+    } else {
+        unreachable!()
+    }
+}
+
+fn sane_div(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
+    let params = validate("div", params, position, vec!["Numeric", "Numeric"])?;
+
+    let left = &*params.get(0).unwrap().clone();
+    let right = &*params.get(1).unwrap().clone();
+    if let (Expr::Const(Const {value: ConstType::Numeric(left), ..}), Expr::Const(Const {value: ConstType::Numeric(right), ..})) = (left, right) {
+        Ok(Rc::new(Expr::Const(Const{ value: ConstType::Numeric(left / right), position: position.clone()})))
     } else {
         unreachable!()
     }

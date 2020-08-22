@@ -28,10 +28,14 @@ args = { ident+ }
 bind = { term ~ "(" ~ expr+ ~ ")" }
 
 infix = { term ~ (operator ~ term)+ }
-operator = _{ op_left_pipe | op_right_pipe | op_dollar }
+operator = _{ op_left_pipe | op_right_pipe | op_dollar | op_plus | op_minus | op_star | op_slash }
 op_left_pipe = { "|>" }
 op_right_pipe = { "<|" }
 op_dollar = { "$" }
+op_plus = { "+" }
+op_minus = { "-" }
+op_star = { "*" }
+op_slash = { "/" }
 
 list = { "[" ~ expr? ~ (";" ~ expr)* ~ "]" }
 structure = { "{" ~ field_value? ~ (";" ~ field_value)* ~ "}" }
