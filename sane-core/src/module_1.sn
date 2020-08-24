@@ -1,0 +1,11 @@
+use (
+  module_0
+)
+
+give (
+  d
+  a
+)
+
+def d = "module_1"
+def a = module_0.a

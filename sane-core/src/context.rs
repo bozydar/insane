@@ -11,28 +11,35 @@ use std::rc::Rc;
 use crate::parse::Expr;
 use crate::ns_ident::NSIdent;
 use crate::build_in_functions::build_in_functions;
+use std::fs::canonicalize;
 
 pub type Path = String;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Context {
     pub source: Rc<str>,
-    file_loader: Rc<RefCell<FileLoader>>,
+    pub look_path: Vec<String>,
+    pub files: Vec<Rc<File>>,
+    pub files_in_processing: Vec<String>
 }
+
 
 impl Context {
     pub fn new(source: &str, look_path: &[&str]) -> Context {
-        let file_loader = Rc::new(RefCell::new(FileLoader::new(look_path)));
         Context {
             source: source.into(),
-            file_loader,
+            look_path: Self::canonicalize_paths(look_path),
+            files: vec![],
+            files_in_processing: vec![]
         }
     }
 
     pub fn from_new_source(&self, source: &str) -> Context {
         Context {
             source: source.into(),
-            file_loader: self.file_loader.clone(),
+            look_path: self.look_path.clone(),
+            files: self.files.clone(),
+            files_in_processing: self.files_in_processing.clone()
         }
     }
 
@@ -42,13 +49,11 @@ impl Context {
     }
 
     pub fn load_file(&mut self, ident: &Ident) -> Result<Rc<File>, Error> {
-        let mut file_loader = self.file_loader.borrow_mut();
-        file_loader.load(ident, self)
+        self.load(ident)
     }
 
     pub fn expr_by_ns_ident(&self, ns_ident: &NSIdent) -> Result<Rc<Expr>, Error> {
-        if let Some(found_file) = self.file_loader
-            .borrow_mut()
+        if let Some(found_file) = self
             .find_in_files(&ns_ident.nspace) {
             let scope = &mut build_in_functions();
             // TODO The problem is that "self" context is context of file which calls the module
@@ -68,16 +73,8 @@ impl Context {
             ).into()
         }
     }
-}
 
-#[derive(Debug)]
-struct FileLoader {
-    pub look_path: Vec<String>,
-    pub files: Vec<Rc<File>>,
-}
-
-impl FileLoader {
-    pub fn new(look_path: &[&str]) -> FileLoader {
+    fn canonicalize_paths(look_path: &[&str]) -> Vec<String> {
         let mut look_path_ = vec![];
         // Add current dir as a starting one on path
         let current_dir = env::current_dir().unwrap().to_str().unwrap().to_owned();
@@ -87,13 +84,7 @@ impl FileLoader {
             let path = fs::canonicalize(path).unwrap();
             look_path_.push(path.to_str().unwrap().to_string())
         }
-            
-        let files = vec![];
-
-        FileLoader {
-            look_path: look_path_,
-            files,
-        }
+        look_path_
     }
 
     /// Let's assume for the very beginning that:
@@ -104,7 +95,7 @@ impl FileLoader {
     ///     1. Look for the module in the current directory
     ///     2. Look for the module in directories defined in look_path
     /// 4. Module is identified by name and it is the file found first
-    pub fn load(&mut self, ident: &Ident, context: &Context) -> Result<Rc<File>, Error> {
+    pub fn load(&mut self, ident: &Ident) -> Result<Rc<File>, Error> {
         let module_name = &ident.label;
         if let Some(file) = self.find_in_files(module_name) {
             Ok(file)
@@ -112,10 +103,11 @@ impl FileLoader {
             let path = self
                 .find_in_path(module_name)
                 .map_err(|err| Error::new(&err, &ident.position))?;
-            let content =
-                FileLoader::read_content(&path).map_err(|err| Error::new(&err, &ident.position))?;
-            // TODO Can avoid such things when parsing to the direct type instead of Expr
-            let context = &mut context.from_new_source(&path);
+            self.check_circularity(&path)
+                .map_err(|err| Error::new(&err, &ident.position))?;
+            let content = Self::read_content(&path).map_err(|err| Error::new(&err, &ident.position))?;
+            self.files_in_processing.push(path.clone());
+            let context = &mut self.from_new_source(&path);
             let file = parse::parse_file(&content, context)?;
             match &*file {
                 parse::Expr::File(file) => {
@@ -125,6 +117,14 @@ impl FileLoader {
                 }
                 _ => unreachable!(),
             }
+        }
+    }
+
+    fn check_circularity(&self, to_check: &str) -> Result<(), String> {
+        if self.files_in_processing.iter().any(|item| item == to_check) {
+            Err(format!("Circular reference to `{}`", to_check))
+        } else {
+            Ok(())
         }
     }
 
@@ -168,6 +168,7 @@ impl FileLoader {
 mod tests {
     use super::*;
     use crate::parse::{parse_file, ToSource};
+    use crate::execute::{execute_file, Scope};
 
     // TODO Better tests in the proper directory
 
@@ -191,6 +192,44 @@ mod tests {
             r#"use (module_0)
 
 module_0.a"#
+        )
+    }
+
+    #[test]
+    fn load_1() {
+        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let scope = &mut Scope::new();
+        let result = execute_file(
+            r#"
+        use (module_1)
+
+        [module_1.a; module_1.d]"#,
+            context, scope
+        )
+            .unwrap()
+            .to_source();
+
+        // TODO Looks like it doesn't execute submodules
+        assert_eq!(
+            result,
+            r#"[1.0]"#
+        )
+    }
+
+    #[test]
+    fn load_rec() {
+        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let scope = &mut Scope::new();
+        let result = parse_file(
+            r#"
+        use (module_2)"#,
+            context
+        )
+            .unwrap_err();
+
+        assert_eq!(
+            result.message,
+            r#"Circular reference to `/Users/bozydarsobczak/Workspaces/insane/sane-core/src/module_2.sn`"#
         )
     }
 }

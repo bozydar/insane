@@ -1,9 +1,11 @@
-use 
+use (
   submodule 
   string
+)
 
-give 
+give (
   check
+)
 
 def check = fun x =>
   x |> decorate("module_1") |> sumbmodule.check
@@ -17,7 +19,6 @@ def decorate = fun x =>
 
 let string = module string
 and let submodule = module submodule
-
 in
   module giving check where
     def check = fun x =>
