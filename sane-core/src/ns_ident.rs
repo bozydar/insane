@@ -2,7 +2,7 @@ use std::rc::Rc;
 use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
 use crate::context::Context;
 use crate::error::Error;
-use crate::execute::{Scope, Execute};
+use crate::execute::{Scope, Execute, execute};
 use pest::iterators::{Pair, Pairs};
 
 
@@ -43,12 +43,12 @@ impl FromPair for NSIdent {
 }
 
 impl Execute for NSIdent {
-    fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
-        dbg!(stack.clone());
+    fn execute(&self, scope: &mut Scope, context: &Context) -> ExprResult {
+        dbg!(scope.clone());
         // TODO Introduce to Context execute method which will find the file by nspace
         // and return the expression designed by identifier
 
-        context.expr_by_ns_ident(self)
+        execute(context.expr_by_ns_ident(self)?, scope, context)
         // context
         // if let Some((_, expr)) = stack.iter().rev().find(|item| { &item.0 == &self.label }) {
         //     Ok(expr.clone())

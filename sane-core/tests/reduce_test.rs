@@ -16,7 +16,17 @@ fn test_reduce_0() {
                      reduce_0(new_acc t)
              in reduce_0
            in
-           [1; 2; 3] |> (reduce(add)) <| 0 
+           [1; 2; 3] |> (reduce(add)) <| 0
+        "#
+    ).unwrap().to_source();
+    assert_eq!(result, "6.0");
+}
+
+#[test]
+fn test_reduce_1() {
+    let result = execute_sane(
+        r#"use (prelude)
+           [1; 2; 3] |> (prelude.reduce(add)) <| 0
         "#
     ).unwrap().to_source();
     assert_eq!(result, "6.0");

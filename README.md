@@ -50,6 +50,7 @@
 * tails recursion optimization
   * if the last instruction of function is binding itself -> replace the argument on the stack instead of pushing a new one (and replace all the captured values)
   * if the last instruction of function is binding to another -> replace itself with the called function on the AST and remove parameter?
+  https://github.com/0x65/trampoline
 * struct 
 * pattern matching
 * types
@@ -58,7 +59,7 @@
   
 * Garbage collector:
 https://github.com/Others/shredder
-  
+    
 ```
 type List(Item) = struct 
   def item: Item

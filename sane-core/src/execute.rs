@@ -3,6 +3,7 @@ use crate::parse::{Expr, ExprResult, parse_sane, parse_file, ToSource};
 use crate::context::Context;
 use std::cell::RefCell;
 use crate::build_in_functions::build_in_functions;
+use std::env;
 
 
 pub trait Execute {
@@ -16,8 +17,22 @@ pub type Scope = Vec<Variable>;
 pub fn execute_sane(input: &str) -> ExprResult {
     let expr = parse_sane(input)?;
     let stack = &mut build_in_functions();
-    let context = Context::new(input, &[]);
+    let context = Context::new("HERE", look_path());
     execute(expr, stack, &context)
+}
+
+fn look_path() -> Vec<String> {
+    let mut result: Vec<String> = vec![];
+    if let Some(val) = env::var_os("SANE_PATH") {
+        if let Some(val) = val.to_str() {
+            for path in env::split_paths(val) {
+                if let Some(path) = path.to_str() {
+                    result.push(String::from(path))
+                }
+            }
+        } 
+    } 
+    result   
 }
 
 pub fn execute_file(input: &str, context: &mut Context, stack: &mut Scope) -> ExprResult {

@@ -25,7 +25,7 @@ pub struct Context {
 
 
 impl Context {
-    pub fn new(source: &str, look_path: &[&str]) -> Context {
+    pub fn new(source: &str, look_path: Vec<String>) -> Context {
         Context {
             source: source.into(),
             look_path: Self::canonicalize_paths(look_path),
@@ -60,7 +60,7 @@ impl Context {
             // but we don't have the contexts of the called module/file.
             // Looks like File should keep `source: Rc<str>` as well to create Context
             // Not sure if Context should keep sources...
-            let context = Context::new(&*ns_ident.position.source, &[]);
+            let context = self.from_new_source(&*found_file.name);
             let ident = Ident {
                 label: ns_ident.label.clone(),
                 position: ns_ident.position.clone()
@@ -68,13 +68,13 @@ impl Context {
             (*found_file).execute_exposed(scope, &context, &ident)
         } else {
             Error::new(
-                &format!("Can't find module {}", &ns_ident.nspace),
+                &format!("Can't find module `{}`", &ns_ident.nspace),
                 &ns_ident.position
             ).into()
         }
     }
 
-    fn canonicalize_paths(look_path: &[&str]) -> Vec<String> {
+    fn canonicalize_paths(look_path: Vec<String>) -> Vec<String> {
         let mut look_path_ = vec![];
         // Add current dir as a starting one on path
         let current_dir = env::current_dir().unwrap().to_str().unwrap().to_owned();
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn load_0() {
-        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
         let result = parse_file(
             r#"
         use (module_0)
@@ -197,7 +197,7 @@ module_0.a"#
 
     #[test]
     fn load_1() {
-        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./sane-core/src")]);
         let scope = &mut Scope::new();
         let result = execute_file(
             r#"
@@ -217,8 +217,8 @@ module_0.a"#
     }
 
     #[test]
-    fn load_rec() {
-        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+    fn load_rec_err() {
+        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
         let scope = &mut Scope::new();
         let result = parse_file(
             r#"
@@ -232,4 +232,24 @@ module_0.a"#
             r#"Circular reference to `/Users/bozydarsobczak/Workspaces/insane/sane-core/src/module_2.sn`"#
         )
     }
+
+    // #[test]
+    // fn load_rec_0() {
+    //     let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+    //     let scope = &mut Scope::new();
+    //     let result = parse_file(
+    //         r#""#,
+    //         context
+    //     )
+    //         .unwrap()
+    //         .to_source();
+    //
+    //     // 1. Sprawdź czy faktycznie ładuje wszystkie moduły
+    //     // 2. zastanów się czy w File nie powinien siedzieć `source_path` i `source`. Context jest
+    //     // tylko na `look_path` i `files`
+    //     assert_eq!(
+    //         result.message,
+    //         r#"Circular reference to `/Users/bozydarsobczak/Workspaces/insane/sane-core/src/module_2.sn`"#
+    //     )
+    // }
 }

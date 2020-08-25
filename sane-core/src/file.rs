@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn execute_use_0() {
-        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
         let scope = &mut Scope::new();
         let result = execute_file(
             r#"
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn execute_use_1() {
-        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
         let scope = &mut Scope::new();
         let result = execute_file(
             r#"
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn execute_use_2() {
-        let context = &mut Context::new(r#"ADHOC"#, &["./src"]);
+        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
         let result = parse_file(
             r#"
         use (module_0)
@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn execute_exposed_0() {
-        let context = &mut Context::new(r#"ADHOC"#, &[]);
+        let context = &mut Context::new(r#"ADHOC"#, vec![]);
         let scope = &mut Scope::new();
         let expr = parse_file(
             r#"
