@@ -48,10 +48,6 @@ impl Context {
         path.file_stem().unwrap().to_str().unwrap().to_string()
     }
 
-    pub fn load_file(&mut self, ident: &Ident) -> Result<Rc<File>, Error> {
-        self.load(ident)
-    }
-
     pub fn expr_by_ns_ident(&self, ns_ident: &NSIdent) -> Result<Rc<Expr>, Error> {
         if let Some(found_file) = self
             .find_in_files(&ns_ident.nspace) {
@@ -95,7 +91,7 @@ impl Context {
     ///     1. Look for the module in the current directory
     ///     2. Look for the module in directories defined in look_path
     /// 4. Module is identified by name and it is the file found first
-    pub fn load(&mut self, ident: &Ident) -> Result<Rc<File>, Error> {
+    pub fn load_file(&mut self, ident: &Ident) -> Result<Rc<File>, Error> {
         let module_name = &ident.label;
         if let Some(file) = self.find_in_files(module_name) {
             Ok(file)
@@ -107,8 +103,11 @@ impl Context {
                 .map_err(|err| Error::new(&err, &ident.position))?;
             let content = Self::read_content(&path).map_err(|err| Error::new(&err, &ident.position))?;
             self.files_in_processing.push(path.clone());
-            let context = &mut self.from_new_source(&path);
-            let file = parse::parse_file(&content, context)?;
+            // Na chuj tworzysz nowy kontekst?! Tylko by dać nowy path???
+            // Niestety trzeba coś zrobić z tą nazwą pliku. Inaczej nie daje rady później odszukać załadowanego
+            // modułu
+            // let context = &mut self.from_new_source(&path);
+            let file = parse::parse_file(&content, self)?;
             match &*file {
                 parse::Expr::File(file) => {
                     let file = Rc::new(file.clone());
