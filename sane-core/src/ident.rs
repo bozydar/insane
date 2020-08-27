@@ -1,5 +1,6 @@
+use crate::parse::Input;
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use crate::error::Error;
 use crate::execute::{Scope, Execute};
@@ -19,17 +20,17 @@ impl ToSource for Ident {
 }
 
 impl Ident {
-    pub fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Ident, Error> {
-        let position = Position::from_span(pair.as_span(), context);
-        Ok(Ident { label: pair.as_str().to_string(), position })
+    pub fn try_from_input(input: Input<'_>) -> Result<Ident, Error> {
+        let position = Position::from_input(input);
+        Ok(Ident { label: input.pair_as_str().to_string(), position })
     }
 }
 
 
-impl FromPair for Ident {
-    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let _position = Position::from_span(pair.as_span(), context);
-        Ok(Rc::new(Expr::Ident(Ident::try_from_pair(pair, context)?)))
+impl FromInput for Ident {
+    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+        let _position = Position::from_input(input);
+        Ok(Rc::new(Expr::Ident(Ident::try_from_input(input)?)))
     }
 }
 

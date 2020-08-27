@@ -1,5 +1,6 @@
+use crate::parse::Input;
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use crate::execute::{Scope, Execute, execute};
 use pest::iterators::{Pair, Pairs};
@@ -20,9 +21,9 @@ impl ToSource for LetIn {
     }
 }
 
-impl FromPair for LetIn {
-    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let mut inner: Pairs<'_, Rule> = pair.into_inner();
+impl FromInput for LetIn {
+    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+        let mut inner: Pairs<'_, Rule> = input.into_inner();
         let mut lets: Vec<(String, Rc<Expr>)> = vec![];
 
         let mut pair = inner.next().unwrap();
@@ -30,12 +31,13 @@ impl FromPair for LetIn {
             let mut ident_expr_inner = pair.into_inner();
             let ident = ident_expr_inner.next().unwrap().as_str().to_string();
             let value = ident_expr_inner.next().unwrap();
-            lets.push((ident, Expr::from_pair(value, context)?));
+            lets.push((ident, Expr::from_input(input.with_pair(value), context)?));
             pair = inner.next().unwrap();
         }
 
-        let position = Position::from_span(pair.as_span(), context);
-        let in_part = Expr::from_pair(pair, context)?;
+        let in_ = input.with_pair(pair);
+        let position = Position::from_input(in_);
+        let in_part = Expr::from_input(input.with_pair(pair), context)?;
         Ok(Rc::new(Expr::LetIn(LetIn {
             lets,
             in_part,

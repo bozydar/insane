@@ -19,9 +19,9 @@ use (
 * Relative search
 
 
-```dot-compile{'name':'graph 1'}
+```dot-compile {'name':'graph 1'}
 digraph G {
     a -> b -> c;
-    a [shape=polygon,sides=5,peripheries=3,color=lightblue,style=filled];
+    a [shape=polygon,color=darkblue,style=filled];
 }
 ```

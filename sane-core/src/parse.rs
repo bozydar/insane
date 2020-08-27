@@ -1,3 +1,4 @@
+use pest::iterators::Pairs;
 use pest::error::InputLocation;
 use pest::iterators::Pair;
 use pest::prec_climber::{Assoc, Operator, PrecClimber};
@@ -24,8 +25,39 @@ pub trait ToSource {
     fn to_source(&self) -> String;
 }
 
-pub trait FromPair {
-    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult;
+pub struct Input<'s> {
+    pub pair: Pair<'s, Rule>,
+    pub path: &'s str
+}
+
+impl <'s> Input<'s> {
+    pub fn new(pair: Pair<'s, Rule>, path: &'s str) -> Self {
+        Self { pair, path }
+    }
+
+    pub fn with_pair(&self, pair: Pair<'s, Rule>) -> Self {
+        Self { pair, path: self.path }
+    }
+
+    pub fn as_rule(&self) -> Rule {
+        self.pair.as_rule()
+    }
+
+    pub fn into_inner(&self) -> Pairs<'s, Rule> {
+        self.pair.into_inner()
+    }
+
+    pub fn as_span(&self) -> Span {
+        self.pair.as_span()
+    }
+
+    pub fn pair_as_str(&self) -> &str {
+        self.pair.as_str()
+    }
+}
+
+pub trait FromInput {
+    fn from_input(pair: Input<'_>, context: &mut Context) -> ExprResult;
 }
 
 pub trait ExprEq {
@@ -87,8 +119,9 @@ impl Position {
         }
     }
 
-    pub fn from_span(span: Span, context: &Context) -> Position {
-        Position::new(span.start(), span.end(), &*context.source)
+    pub fn from_input(input: Input) -> Position {
+        let span = input.as_span();
+        Position::new(span.start(), span.end(), &input.path)
     }
 }
 
@@ -149,34 +182,34 @@ impl ToSource for Expr {
     }
 }
 
-impl FromPair for Expr {
-    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let rule = pair.as_rule();
+impl FromInput for Expr {
+    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+        let rule = input.as_rule();
         match rule {
-            Rule::file => File::from_pair(pair, context),
-            Rule::infix => climb(pair, context),
-            Rule::constant => Const::from_pair(pair, context),
-            Rule::let_in => LetIn::from_pair(pair, context),
-            Rule::ident => Ident::from_pair(pair, context),
-            Rule::bind => Bind::from_pair(pair, context),
-            Rule::fun => Fun::from_pair(pair, context),
-            Rule::list => List::from_pair(pair, context),
-            Rule::ns_ident => NSIdent::from_pair(pair, context),
-            Rule::if_then_else => IfThenElse::from_pair(pair, context),
+            Rule::file => File::from_input(input, context),
+            Rule::infix => climb(input, context),
+            Rule::constant => Const::from_input(input, context),
+            Rule::let_in => LetIn::from_input(input, context),
+            Rule::ident => Ident::from_input(input, context),
+            Rule::bind => Bind::from_input(input, context),
+            Rule::fun => Fun::from_input(input, context),
+            Rule::list => List::from_input(input, context),
+            Rule::ns_ident => NSIdent::from_input(input, context),
+            Rule::if_then_else => IfThenElse::from_input(input, context),
             _ => {
-                let position: Position = Position::from_span(pair.as_span(), context);
+                let position: Position = Position::from_input(input);
                 Error::new(&format!("Unknown rule `{:?}`", rule), &position).into()
             }
         }
     }
 }
 
-pub fn parse_file(input: &str, context: &mut Context) -> ExprResult {
-    let parse_result = SaneParser::parse(Rule::file, input);
+pub fn parse_file(source: &str, path: &str, context: &mut Context) -> ExprResult {
+    let parse_result = SaneParser::parse(Rule::file, source);
     match parse_result {
         Ok(mut pairs) => {
             if let Some(pair) = pairs.next() {
-                Expr::from_pair(pair, context)
+                Expr::from_input(Input::new(pair, path), context)
             } else {
                 Err(Error::new(
                     "Can't find any expression",
@@ -195,7 +228,7 @@ pub fn parse_file(input: &str, context: &mut Context) -> ExprResult {
 }
 
 pub fn parse_sane(input: &str) -> ExprResult {
-    parse_file(input, &mut Context::new("ADHOC", vec![]))
+    parse_file(input, "ADHOC", &mut Context::new("ADHOC", vec![]))
 }
 
 fn precedence_climber() -> PrecClimber<Rule> {
@@ -214,13 +247,13 @@ lazy_static! {
     pub static ref PREC_CLIMBER: PrecClimber<Rule> = precedence_climber();
 }
 
-pub fn climb(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
+pub fn climb(input: Input<'_,>, context: &mut Context) -> ExprResult {
     let source = &*context.source.clone();
-    let primary = |pair| Expr::from_pair(pair, context);
+    let primary = |pair| Expr::from_input(input.with_pair(pair), context);
 
     let binary_expr = |lhs, op, rhs| Binary::build_expr(op, lhs, rhs, source);
 
-    PREC_CLIMBER.climb(pair.into_inner(), primary, binary_expr)
+    PREC_CLIMBER.climb(input.into_inner(), primary, binary_expr)
 }
 
 #[cfg(test)]
@@ -230,6 +263,12 @@ mod tests {
     #[test]
     fn parse_let_in_0() {
         let result = parse_sane("let a = 1 in a").unwrap().to_source();
+        assert_eq!(result, "let a = 1.0 in a");
+    }
+
+    #[test]
+    fn parse_let_in_8() {
+        let result = parse_sane("[1; [2; 3; [4]]]").unwrap().to_source();
         assert_eq!(result, "let a = 1.0 in a");
     }
 

@@ -1,8 +1,9 @@
+use crate::parse::Input;
 use crate::const_expr::{Const, ConstType};
 use crate::context::Context;
 use crate::error::Error;
 use crate::ident::Ident;
-use crate::parse::{Expr, ExprResult, FromPair, Position, Rule, ToSource};
+use crate::parse::{Expr, ExprResult, FromInput, Position, Rule, ToSource};
 use pest::iterators::Pair;
 use std::rc::Rc;
 
@@ -124,17 +125,17 @@ impl ToSource for File {
     }
 }
 
-impl FromPair for File {
-    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let position = Position::from_span(pair.as_span(), context);
+impl FromInput for File {
+    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+        let position = Position::from_input(input);
         let name = context.source_name();
-        let mut inner = pair.into_inner();
+        let mut inner = input.into_inner();
 
         // TODO Ask module loader to parse the file and keep its AST there
-        let import = Rc::new(Import::try_from_pair(inner.next().unwrap(), context)?);
+        let import = Rc::new(Import::try_from_input(input.with_pair(inner.next().unwrap()), context)?);
         let expr = expr_else_unit(inner.next().unwrap(), context)?;
-        let exposition = Rc::new(Exposition::try_from_pair(inner.next().unwrap(), context)?);
-        let definitions = Definition::try_many_from_pair(inner.next().unwrap(), context)?;
+        let exposition = Rc::new(Exposition::try_from_input(input.with_pair(inner.next().unwrap()))?);
+        let definitions = Definition::try_many_from_input(input.with_pair(inner.next().unwrap()), context)?;
         let exposed_module = Rc::new(build_module(&exposition.idents, &definitions)?);
         // let imported_modules = fetch_modules(&import.idents)?;
 
@@ -164,12 +165,12 @@ fn build_module(
 }
 
 impl Import {
-    fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Import, Error> {
-        let position = Position::from_span(pair.as_span(), context);
+    fn try_from_input(input: Input<'_>, context: &mut Context) -> Result<Import, Error> {
+        let position = Position::from_input(input);
         let mut idents = vec![];
 
-        for ident in pair.into_inner() {
-            let ident = Ident::try_from_pair(ident, context)?;
+        for ident in input.into_inner() {
+            let ident = Ident::try_from_input(input.with_pair(ident))?;
             let _ = context.load_file(&ident)?;
             idents.push(Rc::new(ident.clone()))
         }
@@ -179,12 +180,12 @@ impl Import {
 }
 
 impl Exposition {
-    fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Exposition, Error> {
-        let position = Position::from_span(pair.as_span(), context);
+    fn try_from_input(input: Input<'_>) -> Result<Exposition, Error> {
+        let position = Position::from_input(input);
         let mut idents = vec![];
 
-        for ident in pair.into_inner() {
-            let ident = Ident::try_from_pair(ident, context)?;
+        for ident in input.into_inner() {
+            let ident = Ident::try_from_input(input.with_pair(ident))?;
             idents.push(Rc::new(ident.clone()))
         }
 
@@ -193,26 +194,26 @@ impl Exposition {
 }
 
 impl Definition {
-    fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<Definition, Error> {
-        let position = Position::from_span(pair.as_span(), context);
-        let mut ident_expr_inner = pair.into_inner().next().unwrap().into_inner();
+    fn try_from_input(input: Input<'_>, context: &mut Context) -> Result<Definition, Error> {
+        let position = Position::from_input(input);
+        let mut ident_expr_inner = input.into_inner().next().unwrap().into_inner();
 
         let ident = ident_expr_inner.next().unwrap().as_str().to_string();
         let value = ident_expr_inner.next().unwrap();
 
-        let def = (ident, Expr::from_pair(value, context)?);
+        let def = (ident, Expr::from_input(input.with_pair(value), context)?);
 
         Ok(Definition { def, position })
     }
 
-    fn try_many_from_pair(
-        pair: Pair<'_, Rule>,
+    fn try_many_from_input(
+        input: Input<'_>,
         context: &mut Context,
     ) -> Result<Vec<Rc<Definition>>, Error> {
         let mut defintions = vec![];
 
-        for def in pair.into_inner() {
-            let def = Definition::try_from_pair(def, context)?;
+        for def in input.into_inner() {
+            let def = Definition::try_from_input(input.with_pair(def), context)?;
             defintions.push(Rc::new(def));
         }
 
@@ -248,12 +249,12 @@ impl File {
     }
 }
 
-fn expr_else_unit(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-    let position = Position::from_span(pair.as_span(), context);
+fn expr_else_unit(input: Input<'_>, context: &mut Context) -> ExprResult {
+    let position = Position::from_input(input);
 
-    if let Some(ident) = pair.into_inner().next() {
+    if let Some(ident) = input.into_inner().next() {
         print!("HERE");
-        Expr::from_pair(ident, context)
+        Expr::from_input(input.with_pair(ident), context)
     } else {
         print!("unit!!!!!!!");
         Ok(Rc::new(Expr::Const(Const {

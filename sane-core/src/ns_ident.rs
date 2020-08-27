@@ -1,5 +1,6 @@
+use crate::parse::Input;
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use crate::error::Error;
 use crate::execute::{Scope, Execute, execute};
@@ -20,9 +21,9 @@ impl ToSource for NSIdent {
 }
 
 impl NSIdent {
-    pub fn try_from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> Result<NSIdent, Error> {
-        let position = Position::from_span(pair.as_span(), context);
-        let mut inner: Pairs<'_, Rule> = pair.into_inner();
+    pub fn try_from_input(input: Input<'_>) -> Result<NSIdent, Error> {
+        let position = Position::from_input(input);
+        let mut inner: Pairs<'_, Rule> = input.into_inner();
         let nspace = inner.next().unwrap().as_str();
         let label = inner.next().unwrap().as_str();
 
@@ -35,10 +36,10 @@ impl NSIdent {
 }
 
 
-impl FromPair for NSIdent {
-    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let _position = Position::from_span(pair.as_span(), context);
-        Ok(Rc::new(Expr::NSIdent(NSIdent::try_from_pair(pair, context)?)))
+impl FromInput for NSIdent {
+    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+        let _position = Position::from_input(input);
+        Ok(Rc::new(Expr::NSIdent(NSIdent::try_from_input(input)?)))
     }
 }
 

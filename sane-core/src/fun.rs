@@ -1,5 +1,6 @@
+use crate::parse::Input;
 use std::rc::Rc;
-use crate::parse::{Expr, ExprEq, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, ExprEq, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use pest::iterators::{Pair, Pairs};
 use core::fmt;
@@ -28,10 +29,10 @@ impl ToSource for Fun {
     }
 }
 
-impl FromPair for Fun {
-    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let position = Position::from_span(pair.as_span(), context);
-        let mut inner: Pairs<Rule> = pair.into_inner();
+impl FromInput for Fun {
+    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+        let position = Position::from_input(input);
+        let mut inner: Pairs<Rule> = input.into_inner();
         let params = inner.next().unwrap().into_inner()
             .map(|item| item.as_str().to_string())
             .collect::<Vec<String>>();
@@ -41,7 +42,7 @@ impl FromPair for Fun {
             params,
             closure: RefCell::new(false),
             rec_decorated: RefCell::new(false),
-            body: Expr::from_pair(body, context)?,
+            body: Expr::from_input(input.with_pair(body), context)?,
             env: Rc::new(RefCell::new(vec![])),
             position,
         })))

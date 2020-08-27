@@ -1,8 +1,8 @@
+use crate::parse::Input;
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprEq, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprEq, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use pest::iterators::Pair;
-
 
 use crate::execute::{Execute, Scope, execute};
 
@@ -20,13 +20,13 @@ impl ToSource for List {
     }
 }
 
-impl FromPair for List {
-    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
+impl FromInput for List {
+    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
         let mut items: Vec<Rc<Expr>> = vec![];
-        let position = Position::from_span(pair.as_span(), context);
+        let position = Position::from_input(input);
 
-        for item in pair.into_inner() {
-            items.push(Expr::from_pair(item, context)?);
+        for item in input.into_inner() {
+            items.push(Expr::from_input(input.with_pair(item), context)?);
         }
         Ok(Rc::new(Expr::List(List { items, position })))
     }

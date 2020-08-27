@@ -1,5 +1,6 @@
+use crate::parse::Input;
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromPair, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use pest::iterators::{Pair, Pairs};
 
@@ -23,18 +24,18 @@ impl ToSource for IfThenElse {
     }
 }
 
-impl FromPair for IfThenElse {
-    fn from_pair(pair: Pair<'_, Rule>, context: &mut Context) -> ExprResult {
-        let position = Position::from_span(pair.as_span(), context);
-        let mut inner: Pairs<'_, Rule> = pair.into_inner();
-        let cond = inner.next().unwrap();
-        let then = inner.next().unwrap();
-        let otherwise = inner.next().unwrap();
+impl FromInput for IfThenElse {
+    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+        let position = Position::from_input(input);
+        let mut inner: Pairs<'_, Rule> = input.into_inner();
+        let cond = input.with_pair(inner.next().unwrap());
+        let then = input.with_pair(inner.next().unwrap());
+        let otherwise = input.with_pair(inner.next().unwrap());
 
         Ok(Rc::new(Expr::IfThenElse(IfThenElse {
-            cond: Expr::from_pair(cond, context)?,
-            then: Expr::from_pair(then, context)?,
-            otherwise: Expr::from_pair(otherwise, context)?,
+            cond: Expr::from_input(cond, context)?,
+            then: Expr::from_input(then, context)?,
+            otherwise: Expr::from_input(otherwise, context)?,
             position,
         })))
     }
