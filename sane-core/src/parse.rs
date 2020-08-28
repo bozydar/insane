@@ -275,12 +275,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_let_in_8() {
-        let result = parse_sane("[1; [2; 3; [4]]]").unwrap().to_source();
-        assert_eq!(result, "let a = 1.0 in a");
-    }
-
-    #[test]
     fn parse_let_in_1() {
         let result = parse_sane("let a = 1 and let b = 2 in [a; b]")
             .unwrap()

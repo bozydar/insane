@@ -185,8 +185,8 @@ module_0.a"#
 
     #[test]
     fn load_1() {
-        let context = &mut Context::new(vec![String::from("./sane-core/src")]);
-        let scope = &mut Scope::new();
+        let context = &mut Context::new(vec![String::from("./src")]);
+        let scope = &mut build_in_functions();
         let result = execute_file(
             r#"
         use (module_1)
@@ -200,7 +200,7 @@ module_0.a"#
         // TODO Looks like it doesn't execute submodules
         assert_eq!(
             result,
-            r#"[1.0]"#
+            r#"[3.0; "module_1"]"#
         )
     }
 

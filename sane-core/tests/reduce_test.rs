@@ -22,12 +22,12 @@ fn test_reduce_0() {
     assert_eq!(result, "6.0");
 }
 
-#[test]
-fn test_reduce_1() {
-    let result = execute_sane(
-        r#"use (prelude)
-           [1; 2; 3] |> (prelude.reduce(add)) <| 0
-        "#
-    ).unwrap().to_source();
-    assert_eq!(result, "6.0");
-}
+// #[test]
+// fn test_reduce_1() {
+//     let result = execute_sane(
+//         r#"use (prelude)
+//            [1; 2; 3] |> (prelude.reduce(add)) <| 0
+//         "#
+//     ).unwrap().to_source();
+//     assert_eq!(result, "6.0");
+// }

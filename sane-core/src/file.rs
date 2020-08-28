@@ -276,6 +276,7 @@ mod tests {
     use crate::execute::{execute_sane, execute_file};
     use crate::parse::parse_file;
     use std::borrow::Borrow;
+    use crate::build_in_functions::build_in_functions;
 
     #[test]
     fn execute_let_in_2() {
@@ -308,7 +309,7 @@ mod tests {
     #[test]
     fn execute_use_1() {
         let context = &mut Context::new(vec![String::from("./src")]);
-        let scope = &mut Scope::new();
+        let scope = &mut build_in_functions();
         let result = execute_file(
             r#"
         use (module_0)
@@ -318,7 +319,7 @@ mod tests {
         )
             .unwrap()
             .to_source();
-        assert_eq!(result, "[1.0; 2.0]");
+        assert_eq!(result, "[3.0; 5.0]");
     }
 
     #[test]
