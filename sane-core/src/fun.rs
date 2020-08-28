@@ -31,7 +31,8 @@ impl ToSource for Fun {
 
 impl FromInput for Fun {
     fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
-        let position = Position::from_input(input);
+        let position = Position::from_input(&input);
+        let input_ = input.clone();
         let mut inner: Pairs<Rule> = input.into_inner();
         let params = inner.next().unwrap().into_inner()
             .map(|item| item.as_str().to_string())
@@ -42,7 +43,7 @@ impl FromInput for Fun {
             params,
             closure: RefCell::new(false),
             rec_decorated: RefCell::new(false),
-            body: Expr::from_input(input.with_pair(body), context)?,
+            body: Expr::from_input(input_.with_pair(&body), context)?,
             env: Rc::new(RefCell::new(vec![])),
             position,
         })))

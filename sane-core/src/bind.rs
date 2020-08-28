@@ -43,12 +43,13 @@ impl ToSource for Bind {
 impl FromInput for Bind {
     fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
         // TODO the order has changed
-        let position = Position::from_input(input);
+        let position = Position::from_input(&input);
+        let input_ = input.clone();
         let mut inner: Pairs<Rule> = input.into_inner();
-        let fun = Expr::from_input(input.with_pair(inner.next().unwrap()), context)?;
+        let fun = Expr::from_input(input_.with_pair(&inner.next().unwrap()), context)?;
         let mut args = vec![];
         for next_pair in inner {
-            args.push(Expr::from_input(input.with_pair(next_pair), context)?);
+            args.push(Expr::from_input(input_.with_pair(&next_pair), context)?);
         }
 
         Ok(Rc::new(Expr::Bind(Bind { args, fun, position })))

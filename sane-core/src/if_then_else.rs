@@ -26,11 +26,12 @@ impl ToSource for IfThenElse {
 
 impl FromInput for IfThenElse {
     fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
-        let position = Position::from_input(input);
+        let position = Position::from_input(&input);
+        let input_ = input.clone();
         let mut inner: Pairs<'_, Rule> = input.into_inner();
-        let cond = input.with_pair(inner.next().unwrap());
-        let then = input.with_pair(inner.next().unwrap());
-        let otherwise = input.with_pair(inner.next().unwrap());
+        let cond = input_.with_pair(&inner.next().unwrap());
+        let then = input_.with_pair(&inner.next().unwrap());
+        let otherwise = input_.with_pair(&inner.next().unwrap());
 
         Ok(Rc::new(Expr::IfThenElse(IfThenElse {
             cond: Expr::from_input(cond, context)?,

@@ -23,10 +23,11 @@ impl ToSource for List {
 impl FromInput for List {
     fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
         let mut items: Vec<Rc<Expr>> = vec![];
-        let position = Position::from_input(input);
+        let position = Position::from_input(&input);
 
-        for item in input.into_inner() {
-            items.push(Expr::from_input(input.with_pair(item), context)?);
+        let input_ = input.clone();
+        for pair in input.into_inner() {
+            items.push(Expr::from_input(input_.with_pair(&pair), context)?);
         }
         Ok(Rc::new(Expr::List(List { items, position })))
     }

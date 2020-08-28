@@ -5,6 +5,7 @@ use pest::prec_climber::{Assoc, Operator, PrecClimber};
 use pest::Span;
 use std::fmt::Debug;
 use std::rc::Rc;
+use std::path;
 
 use crate::binary::Binary;
 use crate::bind::Bind;
@@ -25,25 +26,27 @@ pub trait ToSource {
     fn to_source(&self) -> String;
 }
 
+#[derive(Clone)]
 pub struct Input<'s> {
     pub pair: Pair<'s, Rule>,
-    pub path: &'s str
+    pub path: &'s str,
+    pub source: &'s str
 }
 
 impl <'s> Input<'s> {
-    pub fn new(pair: Pair<'s, Rule>, path: &'s str) -> Self {
-        Self { pair, path }
+    pub fn new(pair: Pair<'s, Rule>, source: &'s str, path: &'s str) -> Self {
+        Self { pair, path, source }
     }
 
-    pub fn with_pair(&self, pair: Pair<'s, Rule>) -> Self {
-        Self { pair, path: self.path }
+    pub fn with_pair(&self, pair: &Pair<'s, Rule>) -> Self {
+        Self { pair: pair.clone(), path: self.path, source: self.source }
     }
 
     pub fn as_rule(&self) -> Rule {
         self.pair.as_rule()
     }
 
-    pub fn into_inner(&self) -> Pairs<'s, Rule> {
+    pub fn into_inner(self) -> Pairs<'s, Rule> {
         self.pair.into_inner()
     }
 
@@ -53,6 +56,11 @@ impl <'s> Input<'s> {
 
     pub fn pair_as_str(&self) -> &str {
         self.pair.as_str()
+    }
+
+    pub fn source_name(&self) -> String {
+        let path = path::Path::new(self.path);
+        path.file_stem().unwrap().to_str().unwrap().to_string()
     }
 }
 
@@ -119,7 +127,7 @@ impl Position {
         }
     }
 
-    pub fn from_input(input: Input) -> Position {
+    pub fn from_input(input: &Input) -> Position {
         let span = input.as_span();
         Position::new(span.start(), span.end(), &input.path)
     }
@@ -197,7 +205,7 @@ impl FromInput for Expr {
             Rule::ns_ident => NSIdent::from_input(input, context),
             Rule::if_then_else => IfThenElse::from_input(input, context),
             _ => {
-                let position: Position = Position::from_input(input);
+                let position: Position = Position::from_input(&input);
                 Error::new(&format!("Unknown rule `{:?}`", rule), &position).into()
             }
         }
@@ -209,18 +217,18 @@ pub fn parse_file(source: &str, path: &str, context: &mut Context) -> ExprResult
     match parse_result {
         Ok(mut pairs) => {
             if let Some(pair) = pairs.next() {
-                Expr::from_input(Input::new(pair, path), context)
+                Expr::from_input(Input::new(pair, source, path), context)
             } else {
                 Err(Error::new(
                     "Can't find any expression",
-                    &Position::new(1, 1, &context.source),
+                    &Position::new(1, 1, source),
                 ))
             }
         }
         Err(err) => {
             let position = match err.location {
-                InputLocation::Pos(pos) => Position::new(pos, pos, &context.source),
-                InputLocation::Span(span) => Position::new(span.0, span.1, &context.source),
+                InputLocation::Pos(pos) => Position::new(pos, pos, source),
+                InputLocation::Span(span) => Position::new(span.0, span.1, source),
             };
             Err(Error::new(&format!("Can't parse: {}", err), &position))
         }
@@ -228,7 +236,7 @@ pub fn parse_file(source: &str, path: &str, context: &mut Context) -> ExprResult
 }
 
 pub fn parse_sane(input: &str) -> ExprResult {
-    parse_file(input, "ADHOC", &mut Context::new("ADHOC", vec![]))
+    parse_file(input, "ADHOC", &mut Context::new(vec![]))
 }
 
 fn precedence_climber() -> PrecClimber<Rule> {
@@ -248,12 +256,12 @@ lazy_static! {
 }
 
 pub fn climb(input: Input<'_,>, context: &mut Context) -> ExprResult {
-    let source = &*context.source.clone();
-    let primary = |pair| Expr::from_input(input.with_pair(pair), context);
+    let source = &*input.source.clone();
+    let primary = |pair: Pair<'_, Rule>| Expr::from_input(input.with_pair(&pair), context);
 
     let binary_expr = |lhs, op, rhs| Binary::build_expr(op, lhs, rhs, source);
 
-    PREC_CLIMBER.climb(input.into_inner(), primary, binary_expr)
+    PREC_CLIMBER.climb(input.clone().into_inner(), primary, binary_expr)
 }
 
 #[cfg(test)]

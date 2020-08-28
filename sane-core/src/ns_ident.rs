@@ -22,7 +22,7 @@ impl ToSource for NSIdent {
 
 impl NSIdent {
     pub fn try_from_input(input: Input<'_>) -> Result<NSIdent, Error> {
-        let position = Position::from_input(input);
+        let position = Position::from_input(&input);
         let mut inner: Pairs<'_, Rule> = input.into_inner();
         let nspace = inner.next().unwrap().as_str();
         let label = inner.next().unwrap().as_str();
@@ -38,7 +38,7 @@ impl NSIdent {
 
 impl FromInput for NSIdent {
     fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
-        let _position = Position::from_input(input);
+        let _position = Position::from_input(&input);
         Ok(Rc::new(Expr::NSIdent(NSIdent::try_from_input(input)?)))
     }
 }

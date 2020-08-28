@@ -17,7 +17,6 @@ pub type Path = String;
 
 #[derive(Debug, Clone)]
 pub struct Context {
-    pub source: Rc<str>,
     pub look_path: Vec<String>,
     pub files: Vec<Rc<File>>,
     pub files_in_processing: Vec<String>
@@ -25,9 +24,8 @@ pub struct Context {
 
 
 impl Context {
-    pub fn new(source: &str, look_path: Vec<String>) -> Context {
+    pub fn new(look_path: Vec<String>) -> Context {
         Context {
-            source: source.into(),
             look_path: Self::canonicalize_paths(look_path),
             files: vec![],
             files_in_processing: vec![]
@@ -36,16 +34,10 @@ impl Context {
 
     pub fn from_new_source(&self, source: &str) -> Context {
         Context {
-            source: source.into(),
             look_path: self.look_path.clone(),
             files: self.files.clone(),
             files_in_processing: self.files_in_processing.clone()
         }
-    }
-
-    pub fn source_name(&self) -> String {
-        let path = path::Path::new(&*self.source);
-        path.file_stem().unwrap().to_str().unwrap().to_string()
     }
 
     pub fn expr_by_ns_ident(&self, ns_ident: &NSIdent) -> Result<Rc<Expr>, Error> {
@@ -103,11 +95,7 @@ impl Context {
                 .map_err(|err| Error::new(&err, &ident.position))?;
             let content = Self::read_content(&path).map_err(|err| Error::new(&err, &ident.position))?;
             self.files_in_processing.push(path.clone());
-            // Na chuj tworzysz nowy kontekst?! Tylko by dać nowy path???
-            // Niestety trzeba coś zrobić z tą nazwą pliku. Inaczej nie daje rady później odszukać załadowanego
-            // modułu
-            // let context = &mut self.from_new_source(&path);
-            let file = parse::parse_file(&content, self)?;
+            let file = parse::parse_file(&content, &path, self)?;
             match &*file {
                 parse::Expr::File(file) => {
                     let file = Rc::new(file.clone());
@@ -173,12 +161,13 @@ mod tests {
 
     #[test]
     fn load_0() {
-        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
+        let context = &mut Context::new(vec![String::from("./src")]);
         let result = parse_file(
             r#"
         use (module_0)
 
         module_0.a"#,
+            "ADHOC",
             context,
         )
         .unwrap();
@@ -196,14 +185,14 @@ module_0.a"#
 
     #[test]
     fn load_1() {
-        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./sane-core/src")]);
+        let context = &mut Context::new(vec![String::from("./sane-core/src")]);
         let scope = &mut Scope::new();
         let result = execute_file(
             r#"
         use (module_1)
 
         [module_1.a; module_1.d]"#,
-            context, scope
+            "ADHOC", context, scope
         )
             .unwrap()
             .to_source();
@@ -217,12 +206,12 @@ module_0.a"#
 
     #[test]
     fn load_rec_err() {
-        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
+        let context = &mut Context::new(vec![String::from("./src")]);
         let scope = &mut Scope::new();
         let result = parse_file(
             r#"
         use (module_2)"#,
-            context
+            "ADHOC", context
         )
             .unwrap_err();
 

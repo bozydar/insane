@@ -21,7 +21,7 @@ impl ToSource for Ident {
 
 impl Ident {
     pub fn try_from_input(input: Input<'_>) -> Result<Ident, Error> {
-        let position = Position::from_input(input);
+        let position = Position::from_input(&input);
         Ok(Ident { label: input.pair_as_str().to_string(), position })
     }
 }
@@ -29,7 +29,7 @@ impl Ident {
 
 impl FromInput for Ident {
     fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
-        let _position = Position::from_input(input);
+        let _position = Position::from_input(&input);
         Ok(Rc::new(Expr::Ident(Ident::try_from_input(input)?)))
     }
 }

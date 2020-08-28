@@ -17,7 +17,7 @@ pub type Scope = Vec<Variable>;
 pub fn execute_sane(input: &str) -> ExprResult {
     let expr = parse_sane(input)?;
     let stack = &mut build_in_functions();
-    let context = Context::new("HERE", look_path());
+    let context = Context::new(look_path());
     execute(expr, stack, &context)
 }
 
@@ -35,8 +35,8 @@ fn look_path() -> Vec<String> {
     result   
 }
 
-pub fn execute_file(input: &str, context: &mut Context, stack: &mut Scope) -> ExprResult {
-    let expr = parse_file(input, context)?;
+pub fn execute_file(input: &str, path: &str, context: &mut Context, stack: &mut Scope) -> ExprResult {
+    let expr = parse_file(input, path, context)?;
     // println!("{:#?}", create_build_in("count".to_string(), sane_count, 1));
     let result = execute(expr, stack, context)?;
     Ok(result)

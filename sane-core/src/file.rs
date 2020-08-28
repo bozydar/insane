@@ -127,15 +127,16 @@ impl ToSource for File {
 
 impl FromInput for File {
     fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
-        let position = Position::from_input(input);
-        let name = context.source_name();
+        let position = Position::from_input(&input);
+        let name = input.source_name();
+        let input_ = input.clone();
         let mut inner = input.into_inner();
 
         // TODO Ask module loader to parse the file and keep its AST there
-        let import = Rc::new(Import::try_from_input(input.with_pair(inner.next().unwrap()), context)?);
-        let expr = expr_else_unit(inner.next().unwrap(), context)?;
-        let exposition = Rc::new(Exposition::try_from_input(input.with_pair(inner.next().unwrap()))?);
-        let definitions = Definition::try_many_from_input(input.with_pair(inner.next().unwrap()), context)?;
+        let import = Rc::new(Import::try_from_input(input_.with_pair(&inner.next().unwrap()), context)?);
+        let expr = expr_else_unit(input_.with_pair(&inner.next().unwrap()), context)?;
+        let exposition = Rc::new(Exposition::try_from_input(input_.with_pair(&inner.next().unwrap()))?);
+        let definitions = Definition::try_many_from_input(input_.with_pair(&inner.next().unwrap()), context)?;
         let exposed_module = Rc::new(build_module(&exposition.idents, &definitions)?);
         // let imported_modules = fetch_modules(&import.idents)?;
 
@@ -166,11 +167,12 @@ fn build_module(
 
 impl Import {
     fn try_from_input(input: Input<'_>, context: &mut Context) -> Result<Import, Error> {
-        let position = Position::from_input(input);
+        let position = Position::from_input(&input);
         let mut idents = vec![];
 
+        let input_ = input.clone();
         for ident in input.into_inner() {
-            let ident = Ident::try_from_input(input.with_pair(ident))?;
+            let ident = Ident::try_from_input(input_.with_pair(&ident))?;
             let _ = context.load_file(&ident)?;
             idents.push(Rc::new(ident.clone()))
         }
@@ -181,11 +183,12 @@ impl Import {
 
 impl Exposition {
     fn try_from_input(input: Input<'_>) -> Result<Exposition, Error> {
-        let position = Position::from_input(input);
+        let position = Position::from_input(&input);
         let mut idents = vec![];
 
+        let input_ = input.clone();
         for ident in input.into_inner() {
-            let ident = Ident::try_from_input(input.with_pair(ident))?;
+            let ident = Ident::try_from_input(input_.with_pair(&ident))?;
             idents.push(Rc::new(ident.clone()))
         }
 
@@ -195,13 +198,14 @@ impl Exposition {
 
 impl Definition {
     fn try_from_input(input: Input<'_>, context: &mut Context) -> Result<Definition, Error> {
-        let position = Position::from_input(input);
+        let position = Position::from_input(&input);
+        let input_ = input.clone();
         let mut ident_expr_inner = input.into_inner().next().unwrap().into_inner();
 
         let ident = ident_expr_inner.next().unwrap().as_str().to_string();
         let value = ident_expr_inner.next().unwrap();
 
-        let def = (ident, Expr::from_input(input.with_pair(value), context)?);
+        let def = (ident, Expr::from_input(input_.with_pair(&value), context)?);
 
         Ok(Definition { def, position })
     }
@@ -212,8 +216,9 @@ impl Definition {
     ) -> Result<Vec<Rc<Definition>>, Error> {
         let mut defintions = vec![];
 
+        let input_ = input.clone();
         for def in input.into_inner() {
-            let def = Definition::try_from_input(input.with_pair(def), context)?;
+            let def = Definition::try_from_input(input_.with_pair(&def), context)?;
             defintions.push(Rc::new(def));
         }
 
@@ -250,11 +255,12 @@ impl File {
 }
 
 fn expr_else_unit(input: Input<'_>, context: &mut Context) -> ExprResult {
-    let position = Position::from_input(input);
+    let position = Position::from_input(&input);
 
+    let input_ = input.clone();
     if let Some(ident) = input.into_inner().next() {
         print!("HERE");
-        Expr::from_input(input.with_pair(ident), context)
+        Expr::from_input(input_.with_pair(&ident), context)
     } else {
         print!("unit!!!!!!!");
         Ok(Rc::new(Expr::Const(Const {
@@ -284,7 +290,7 @@ mod tests {
 
     #[test]
     fn execute_use_0() {
-        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
+        let context = &mut Context::new(vec![String::from("./src")]);
         let scope = &mut Scope::new();
         let result = execute_file(
             r#"
@@ -292,7 +298,7 @@ mod tests {
 
         let a = 1 and let b = 2 in [a; b]
         
-        "#, context, scope,
+        "#, "ADHOC", context, scope,
         )
             .unwrap()
             .to_source();
@@ -301,14 +307,14 @@ mod tests {
 
     #[test]
     fn execute_use_1() {
-        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
+        let context = &mut Context::new(vec![String::from("./src")]);
         let scope = &mut Scope::new();
         let result = execute_file(
             r#"
         use (module_0)
 
         [module_0.a; module_0.b]
-        "#, context, scope
+        "#, "ADHOC", context, scope
         )
             .unwrap()
             .to_source();
@@ -317,14 +323,14 @@ mod tests {
 
     #[test]
     fn execute_use_2() {
-        let context = &mut Context::new(r#"ADHOC"#, vec![String::from("./src")]);
+        let context = &mut Context::new(vec![String::from("./src")]);
         let result = parse_file(
             r#"
         use (module_0)
 
         module_0.a
 
-        "#, context,
+        "#, "ADHOC", context,
         )
             .unwrap();
         dbg!(result);
@@ -333,7 +339,7 @@ mod tests {
 
     #[test]
     fn execute_exposed_0() {
-        let context = &mut Context::new(r#"ADHOC"#, vec![]);
+        let context = &mut Context::new(vec![]);
         let scope = &mut Scope::new();
         let expr = parse_file(
             r#"
@@ -341,7 +347,7 @@ mod tests {
 
             def a = 1
             def b = fun x => x
-        "#, context).unwrap();
+        "#, "ADHOC", context).unwrap();
         let ident = Ident { label: String::from("a"), position: Position::new(0, 0, "a") };
         let result =
             match expr.borrow() {
