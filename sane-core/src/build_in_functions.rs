@@ -14,6 +14,8 @@ pub fn build_in_functions() -> Scope {
         create_build_in("head".to_string(), sane_head, 1),
         create_build_in("tail".to_string(), sane_tail, 1),
         create_build_in("eq".to_string(), sane_eq, 2),
+        create_build_in("==".to_string(), sane_eq, 2),
+        create_build_in("!=".to_string(), sane_neq, 2),
         create_build_in("inc".to_string(), sane_inc, 1),
         create_build_in("count".to_string(), sane_count, 1),
         create_build_in("concat".to_string(), sane_concat, 2),
@@ -131,6 +133,22 @@ fn sane_eq(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         let left = &*left.clone();
         let right = &*right.clone();
         let value = ConstType::Bool(left.expr_eq(right));
+        Ok(Rc::new(Expr::Const(Const {
+            value,
+            position: position.clone(),
+        })))
+    } else {
+        unreachable!()
+    }
+}
+
+fn sane_neq(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
+    let params = validate("eq", params, position, vec!["Any", "Any"])?;
+
+    if let (Some(left), Some(right)) = (params.get(0), params.get(1)) {
+        let left = &*left.clone();
+        let right = &*right.clone();
+        let value = ConstType::Bool(!left.expr_eq(right));
         Ok(Rc::new(Expr::Const(Const {
             value,
             position: position.clone(),
@@ -481,5 +499,41 @@ mod tests {
     fn test_concat_0() {
         let result = execute_sane(r#"concat([1] [2])"#).unwrap().to_source();
         assert_eq!(result, "[1.0; 2.0]");
+    }
+
+    #[test]
+    fn test_eq_0() {
+        let result = execute_sane(r#"1 == 1"#).unwrap().to_source();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_eq_1() {
+        let result = execute_sane(r#"1 == 1 == 1"#).unwrap().to_source();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_eq_2() {
+        let result = execute_sane(r#"1 == 1 == true"#).unwrap().to_source();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_neq_0() {
+        let result = execute_sane(r#"1 != 1"#).unwrap().to_source();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_neq_1() {
+        let result = execute_sane(r#"1 != 1 != 1"#).unwrap().to_source();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_neq_2() {
+        let result = execute_sane(r#"1 != 1 == false"#).unwrap().to_source();
+        assert_eq!(result, "true");
     }
 }

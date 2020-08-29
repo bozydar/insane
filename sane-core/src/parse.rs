@@ -244,6 +244,7 @@ fn precedence_climber() -> PrecClimber<Rule> {
         Operator::new(Rule::op_left_pipe, Assoc::Left)
             | Operator::new(Rule::op_right_pipe, Assoc::Right),
         Operator::new(Rule::op_dollar, Assoc::Right),
+        Operator::new(Rule::op_eq, Assoc::Left) | Operator::new(Rule::op_neq, Assoc::Left),
         Operator::new(Rule::op_plus, Assoc::Left) | Operator::new(Rule::op_minus, Assoc::Left),
         Operator::new(Rule::op_star, Assoc::Left) | Operator::new(Rule::op_slash, Assoc::Left),
     ])

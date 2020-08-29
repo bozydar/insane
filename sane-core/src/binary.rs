@@ -26,6 +26,8 @@ pub enum Operator {
     Minus,
     Star,
     Slash,
+    Eq,
+    Neq
 }
 
 pub(crate) const LEFT_PIPE: &str = "|>";
@@ -35,6 +37,8 @@ pub(crate) const PLUS: &str = "+";
 pub(crate) const MINUS: &str = "-";
 pub(crate) const STAR: &str = "*";
 pub(crate) const SLASH: &str = "/";
+pub(crate) const EQ: &str = "==";
+pub(crate) const NEQ: &str = "!=";
 
 impl From<&str> for Operator {
     fn from(s: &str) -> Operator {
@@ -46,6 +50,8 @@ impl From<&str> for Operator {
             MINUS => Operator::Minus,
             STAR => Operator::Star,
             SLASH => Operator::Slash,
+            EQ => Operator::Eq,
+            NEQ => Operator::Neq,
             _ => unreachable!("Don't know symbol `{}`", s),
         }
     }
@@ -61,6 +67,8 @@ impl ToSource for Operator {
             Operator::Minus => MINUS.to_string(),
             Operator::Star => STAR.to_string(),
             Operator::Slash => SLASH.to_string(),
+            Operator::Eq => EQ.to_string(),
+            Operator::Neq => NEQ.to_string(),
         }
     }
 }

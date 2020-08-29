@@ -1,10 +1,11 @@
 give (
     reduce
+    map
 )
 
 def reduce = fun fn =>
   let reduce_0 = fun acc list =>
-    if list |> count |> eq <| 0 then
+    if (count(list)) == 0 then
       acc
     else
       let h = list |> head
@@ -16,3 +17,16 @@ def reduce = fun fn =>
             reduce_0(new_acc t)
   in
     reduce_0
+
+def map = fun fn =>
+  let map_0 = fun list =>
+    if (count(list)) == 0 then
+      []
+    else
+      let h = list |> head |> fn
+      in
+        let t = tail(list)
+        in
+          concat([h] map_0(t))
+  in
+    map_0

@@ -28,7 +28,7 @@ args = { ident+ }
 bind = { term ~ "(" ~ expr+ ~ ")" }
 
 infix = { term ~ (operator ~ term)+ }
-operator = _{ op_left_pipe | op_right_pipe | op_dollar | op_plus | op_minus | op_star | op_slash }
+operator = _{ op_left_pipe | op_right_pipe | op_dollar | op_plus | op_minus | op_star | op_slash | op_eq | op_neq }
 op_left_pipe = { "|>" }
 op_right_pipe = { "<|" }
 op_dollar = { "$" }
@@ -36,6 +36,8 @@ op_plus = { "+" }
 op_minus = { "-" }
 op_star = { "*" }
 op_slash = { "/" }
+op_eq = { "==" }
+op_neq = { "!="}
 
 list = { "[" ~ expr? ~ (";" ~ expr)* ~ "]" }
 structure = { "{" ~ field_value? ~ (";" ~ field_value)* ~ "}" }
@@ -54,5 +56,5 @@ definition = { "def" ~ ident_expr }
 expression = { expr? }
 
 keywords = {
-  "let" | "fun" | "def" | "and" | "use"  | "give"
+  "let" | "fun" | "def" | "and" | "use"  | "give" | "if" | "then" | "else"
 }
