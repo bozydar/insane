@@ -1,9 +1,8 @@
-use crate::parse::Input;
-use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
-use pest::iterators::{Pairs};
-
+use crate::parse::Input;
+use crate::parse::{Expr, ExprResult, FromInput, Position, Rule, ToSource};
+use pest::iterators::Pairs;
+use std::rc::Rc;
 
 use crate::execute::{execute, Execute, Scope};
 
@@ -17,10 +16,15 @@ pub struct IfThenElse {
     pub position: Position,
 }
 
-
 impl ToSource for IfThenElse {
     fn to_source(&self) -> String {
-        format!("if {} then {} else {}", self.cond.to_source(), self.then.to_source(), self.otherwise.to_source()).to_lowercase()
+        format!(
+            "if {} then {} else {}",
+            self.cond.to_source(),
+            self.then.to_source(),
+            self.otherwise.to_source()
+        )
+        .to_lowercase()
     }
 }
 
@@ -45,15 +49,17 @@ impl FromInput for IfThenElse {
 impl Execute for IfThenElse {
     fn execute(&self, stack: &mut Scope, context: &Context) -> ExprResult {
         let result = execute(self.cond.clone(), stack, context)?;
-        if let Expr::Const(Const { value: ConstType::Bool(true), .. }) = *result {
+        if let Expr::Const(Const {
+            value: ConstType::Bool(true),
+            ..
+        }) = *result
+        {
             execute(self.then.clone(), stack, context)
         } else {
             execute(self.otherwise.clone(), stack, context)
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -62,8 +68,9 @@ mod tests {
 
     #[test]
     fn test_execute_if_0() {
-        let result = execute_sane(
-            r#"if true then 1 else 2"#).unwrap().to_source();
+        let result = execute_sane(r#"if true then 1 else 2"#)
+            .unwrap()
+            .to_source();
         assert_eq!(result, "1.0");
     }
 
@@ -74,8 +81,10 @@ mod tests {
                     inc(a)
                 in
                 let b = 1 |> plus_one in
-                if b |> eq <| 2 then 1 else 2"#).unwrap().to_source();
+                if b |> eq <| 2 then 1 else 2"#,
+        )
+        .unwrap()
+        .to_source();
         assert_eq!(result, "1.0");
     }
-
 }

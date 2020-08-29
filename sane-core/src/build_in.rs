@@ -1,10 +1,8 @@
+use crate::parse::{Expr, ExprResult, Position, ToSource};
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource};
 
-use std::fmt::{Debug, Formatter};
 use std::fmt;
-
-
+use std::fmt::{Debug, Formatter};
 
 pub type BuildInFun = fn(Vec<Rc<Expr>>, &Position) -> ExprResult;
 
@@ -32,7 +30,3 @@ impl ToSource for BuildIn {
         format!("{:?}", self).to_lowercase()
     }
 }
-
-
-
-

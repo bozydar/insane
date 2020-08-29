@@ -1,11 +1,10 @@
-use crate::parse::Input;
-use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use crate::error::Error;
-use crate::execute::{Scope, Execute, execute};
-use pest::iterators::{Pairs};
-
+use crate::execute::{execute, Execute, Scope};
+use crate::parse::Input;
+use crate::parse::{Expr, ExprResult, FromInput, Position, Rule, ToSource};
+use pest::iterators::Pairs;
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NSIdent {
@@ -30,11 +29,10 @@ impl NSIdent {
         Ok(NSIdent {
             nspace: nspace.to_string(),
             label: label.to_string(),
-            position
+            position,
         })
     }
 }
-
 
 impl FromInput for NSIdent {
     fn from_input(input: Input<'_>, _context: &mut Context) -> ExprResult {

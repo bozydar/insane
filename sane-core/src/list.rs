@@ -1,11 +1,9 @@
-use crate::parse::Input;
-use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprEq, ExprResult, ToSource, FromInput};
 use crate::context::Context;
+use crate::parse::Input;
+use crate::parse::{Expr, ExprEq, ExprResult, FromInput, Position, ToSource};
+use std::rc::Rc;
 
-
-use crate::execute::{Execute, Scope, execute};
-
+use crate::execute::{execute, Execute, Scope};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct List {
@@ -15,7 +13,12 @@ pub struct List {
 
 impl ToSource for List {
     fn to_source(&self) -> String {
-        let c = self.items.iter().map(|item| item.to_source()).collect::<Vec<String>>().join("; ");
+        let c = self
+            .items
+            .iter()
+            .map(|item| item.to_source())
+            .collect::<Vec<String>>()
+            .join("; ");
         format!("[{}]", c)
     }
 }
@@ -41,17 +44,22 @@ impl Execute for List {
             let item = execute(item.clone(), stack, context)?;
             result.push(item);
         }
-        Ok(Rc::new(Expr::List(List { items: result, position: self.position.clone() })))
+        Ok(Rc::new(Expr::List(List {
+            items: result,
+            position: self.position.clone(),
+        })))
     }
 }
 
 impl ExprEq for List {
     fn expr_eq(&self, other: &Expr) -> bool {
         match other {
-            Expr::List(other) => self.items.iter()
+            Expr::List(other) => self
+                .items
+                .iter()
                 .zip(other.items.iter())
                 .all(|(left, right)| left.expr_eq(right)),
-            _ => false
+            _ => false,
         }
     }
 }

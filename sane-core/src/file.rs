@@ -1,8 +1,8 @@
-use crate::parse::Input;
 use crate::const_expr::{Const, ConstType};
 use crate::context::Context;
 use crate::error::Error;
 use crate::ident::Ident;
+use crate::parse::Input;
 use crate::parse::{Expr, ExprResult, FromInput, Position, ToSource};
 
 use std::rc::Rc;
@@ -43,9 +43,7 @@ pub struct Exposition {
 
 impl Exposition {
     pub fn is_exposed(&self, label: &str) -> bool {
-        self.idents.iter().any(|ident| {
-            ident.label == label
-        })
+        self.idents.iter().any(|ident| ident.label == label)
     }
 }
 
@@ -77,7 +75,6 @@ pub struct File {
     // pub imported_modules: Vec<Rc<Module>>,
     pub position: Position,
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Definition {
@@ -133,10 +130,16 @@ impl FromInput for File {
         let mut inner = input.into_inner();
 
         // TODO Ask module loader to parse the file and keep its AST there
-        let import = Rc::new(Import::try_from_input(input_.with_pair(&inner.next().unwrap()), context)?);
+        let import = Rc::new(Import::try_from_input(
+            input_.with_pair(&inner.next().unwrap()),
+            context,
+        )?);
         let expr = expr_else_unit(input_.with_pair(&inner.next().unwrap()), context)?;
-        let exposition = Rc::new(Exposition::try_from_input(input_.with_pair(&inner.next().unwrap()))?);
-        let definitions = Definition::try_many_from_input(input_.with_pair(&inner.next().unwrap()), context)?;
+        let exposition = Rc::new(Exposition::try_from_input(
+            input_.with_pair(&inner.next().unwrap()),
+        )?);
+        let definitions =
+            Definition::try_many_from_input(input_.with_pair(&inner.next().unwrap()), context)?;
         let exposed_module = Rc::new(build_module(&exposition.idents, &definitions)?);
         // let imported_modules = fetch_modules(&import.idents)?;
 
@@ -240,16 +243,19 @@ impl Execute for File {
 
 impl File {
     pub fn find_exposed(&self, ident: &Ident) -> ExprResult {
-        if let Some(definition) = self.definitions.iter().cloned()
-            .find(|definition| {
-                *definition.def.0 == ident.label
-            }) {
+        if let Some(definition) = self
+            .definitions
+            .iter()
+            .cloned()
+            .find(|definition| *definition.def.0 == ident.label)
+        {
             Ok(definition.def.1.clone())
         } else {
             Error::new(
                 &format!("Can't find definition of `{}`", ident.to_source()),
-                &ident.position
-            ).into()
+                &ident.position,
+            )
+            .into()
         }
     }
 }
@@ -273,10 +279,10 @@ fn expr_else_unit(input: Input<'_>, context: &mut Context) -> ExprResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execute::{execute_sane, execute_file};
+    use crate::build_in_functions::build_in_functions;
+    use crate::execute::{execute_file, execute_sane};
     use crate::parse::parse_file;
     use std::borrow::Borrow;
-    use crate::build_in_functions::build_in_functions;
 
     #[test]
     fn execute_let_in_2() {
@@ -288,7 +294,6 @@ mod tests {
 
     // Define Prelude and enable dotted names
 
-
     #[test]
     fn execute_use_0() {
         let context = &mut Context::new(vec![String::from("./src")]);
@@ -299,10 +304,13 @@ mod tests {
 
         let a = 1 and let b = 2 in [a; b]
         
-        "#, "ADHOC", context, scope,
+        "#,
+            "ADHOC",
+            context,
+            scope,
         )
-            .unwrap()
-            .to_source();
+        .unwrap()
+        .to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 
@@ -315,10 +323,13 @@ mod tests {
         use (module_0)
 
         [module_0.a; module_0.b]
-        "#, "ADHOC", context, scope
+        "#,
+            "ADHOC",
+            context,
+            scope,
         )
-            .unwrap()
-            .to_source();
+        .unwrap()
+        .to_source();
         assert_eq!(result, "[3.0; 5.0]");
     }
 
@@ -331,9 +342,11 @@ mod tests {
 
         module_0.a
 
-        "#, "ADHOC", context,
+        "#,
+            "ADHOC",
+            context,
         )
-            .unwrap();
+        .unwrap();
         dbg!(result);
         // assert_eq!(result, "[1.0; 2.0]");
     }
@@ -341,20 +354,26 @@ mod tests {
     #[test]
     fn find_exposed_0() {
         let context = &mut Context::new(vec![]);
-        let scope = &mut Scope::new();
         let expr = parse_file(
             r#"
             give (a)
 
             def a = 1
             def b = fun x => x
-        "#, "ADHOC", context).unwrap();
-        let ident = Ident { label: String::from("a"), position: Position::new(0, 0, "a") };
-        let result =
-            match expr.borrow() {
-                Expr::File(file) => file.find_exposed(&ident),
-                _ => panic!("{:?} is not a File", expr)
-            }.unwrap();
+        "#,
+            "ADHOC",
+            context,
+        )
+        .unwrap();
+        let ident = Ident {
+            label: String::from("a"),
+            position: Position::new(0, 0, "a"),
+        };
+        let result = match expr.borrow() {
+            Expr::File(file) => file.find_exposed(&ident),
+            _ => panic!("{:?} is not a File", expr),
+        }
+        .unwrap();
         assert_eq!(result.to_source(), "1.0");
     }
 }

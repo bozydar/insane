@@ -1,11 +1,11 @@
-use crate::parse::Input;
-use std::rc::Rc;
-use crate::parse::{Expr, ExprEq, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
-use pest::iterators::{Pairs};
+use crate::execute::Scope;
+use crate::parse::Input;
+use crate::parse::{Expr, ExprEq, ExprResult, FromInput, Position, Rule, ToSource};
 use core::fmt;
+use pest::iterators::Pairs;
 use std::cell::RefCell;
-use crate::execute::{Scope};
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Fun {
@@ -34,7 +34,10 @@ impl FromInput for Fun {
         let position = Position::from_input(&input);
         let input_ = input.clone();
         let mut inner: Pairs<Rule> = input.into_inner();
-        let params = inner.next().unwrap().into_inner()
+        let params = inner
+            .next()
+            .unwrap()
+            .into_inner()
             .map(|item| item.as_str().to_string())
             .collect::<Vec<String>>();
         let body = inner.next().unwrap();

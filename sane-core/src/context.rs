@@ -3,15 +3,14 @@ use crate::file::File;
 use crate::ident::Ident;
 use crate::parse;
 
+use crate::build_in_functions::build_in_functions;
+use crate::ns_ident::NSIdent;
+use crate::parse::Expr;
 use std::env;
 use std::fs;
 use std::io::prelude::*;
 use std::path;
 use std::rc::Rc;
-use crate::parse::Expr;
-use crate::ns_ident::NSIdent;
-use crate::build_in_functions::build_in_functions;
-
 
 pub type Path = String;
 
@@ -19,33 +18,31 @@ pub type Path = String;
 pub struct Context {
     pub look_path: Vec<String>,
     pub files: Vec<Rc<File>>,
-    pub files_in_processing: Vec<String>
+    pub files_in_processing: Vec<String>,
 }
-
 
 impl Context {
     pub fn new(look_path: Vec<String>) -> Context {
         Context {
             look_path: Self::canonicalize_paths(look_path),
             files: vec![],
-            files_in_processing: vec![]
+            files_in_processing: vec![],
         }
     }
 
     pub fn expr_by_ns_ident(&self, ns_ident: &NSIdent) -> Result<Rc<Expr>, Error> {
-        if let Some(found_file) = self
-            .find_in_files(&ns_ident.nspace) {
-
+        if let Some(found_file) = self.find_in_files(&ns_ident.nspace) {
             let ident = Ident {
                 label: ns_ident.label.clone(),
-                position: ns_ident.position.clone()
+                position: ns_ident.position.clone(),
             };
             (*found_file).find_exposed(&ident)
         } else {
             Error::new(
                 &format!("Can't find module `{}`", &ns_ident.nspace),
-                &ns_ident.position
-            ).into()
+                &ns_ident.position,
+            )
+            .into()
         }
     }
 
@@ -62,14 +59,6 @@ impl Context {
         look_path_
     }
 
-    /// Let's assume for the very beginning that:
-    /// 0. All the modules will be described as absolute in the future
-    /// 1. modules are files
-    /// 2. Name of the module file's base name
-    /// 3. Looking for a modules is:
-    ///     1. Look for the module in the current directory
-    ///     2. Look for the module in directories defined in look_path
-    /// 4. Module is identified by name and it is the file found first
     pub fn load_file(&mut self, ident: &Ident) -> Result<Rc<File>, Error> {
         let module_name = &ident.label;
         if let Some(file) = self.find_in_files(module_name) {
@@ -80,7 +69,8 @@ impl Context {
                 .map_err(|err| Error::new(&err, &ident.position))?;
             self.check_circularity(&path)
                 .map_err(|err| Error::new(&err, &ident.position))?;
-            let content = Self::read_content(&path).map_err(|err| Error::new(&err, &ident.position))?;
+            let content =
+                Self::read_content(&path).map_err(|err| Error::new(&err, &ident.position))?;
             self.files_in_processing.push(path.clone());
             let file = parse::parse_file(&content, &path, self)?;
             match &*file {
@@ -141,8 +131,8 @@ impl Context {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::execute::execute_file;
     use crate::parse::{parse_file, ToSource};
-    use crate::execute::{execute_file, Scope};
 
     // TODO Better tests in the proper directory
 
@@ -179,16 +169,15 @@ module_0.a"#
         use (module_1)
 
         [module_1.a; module_1.d]"#,
-            "ADHOC", context, scope
+            "ADHOC",
+            context,
+            scope,
         )
-            .unwrap()
-            .to_source();
+        .unwrap()
+        .to_source();
 
         // TODO Looks like it doesn't execute submodules
-        assert_eq!(
-            result,
-            r#"[3.0; "module_1"]"#
-        )
+        assert_eq!(result, r#"[3.0; "module_1"]"#)
     }
 
     #[test]
@@ -197,9 +186,10 @@ module_0.a"#
         let result = parse_file(
             r#"
         use (module_2)"#,
-            "ADHOC", context
+            "ADHOC",
+            context,
         )
-            .unwrap_err();
+        .unwrap_err();
 
         assert_eq!(
             result.message,

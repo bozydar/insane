@@ -16,7 +16,9 @@ fn test_map_0() {
                 in map_
             in
                 (map(inc))([1; 2; 3])
-        "#
-    ).unwrap().to_source();
+        "#,
+    )
+    .unwrap()
+    .to_source();
     assert_eq!(result, "[2.0; 3.0; 4.0]");
 }

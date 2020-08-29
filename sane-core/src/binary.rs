@@ -1,10 +1,10 @@
-use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, Rule};
-use crate::context::Context;
-use crate::execute::{Scope, Execute};
-use pest::iterators::{Pair};
-use crate::ident::Ident;
 use crate::bind::Bind;
+use crate::context::Context;
+use crate::execute::{Execute, Scope};
+use crate::ident::Ident;
+use crate::parse::{Expr, ExprResult, Position, Rule, ToSource};
+use pest::iterators::Pair;
+use std::rc::Rc;
 
 // The binary Expr is done only to allow ToSource() working fine. I could use just Bind expr
 // to make too. Anyway it is important to have: source -> Parser -> source flow working
@@ -25,11 +25,11 @@ pub enum Operator {
     Plus,
     Minus,
     Star,
-    Slash
+    Slash,
 }
 
-pub(crate) const LEFT_PIPE: &str= "|>";
-pub(crate) const RIGHT_PIPE: &str= "<|";
+pub(crate) const LEFT_PIPE: &str = "|>";
+pub(crate) const RIGHT_PIPE: &str = "<|";
 pub(crate) const DOLLAR: &str = "$";
 pub(crate) const PLUS: &str = "+";
 pub(crate) const MINUS: &str = "-";
@@ -46,7 +46,7 @@ impl From<&str> for Operator {
             MINUS => Operator::Minus,
             STAR => Operator::Star,
             SLASH => Operator::Slash,
-            _ => unreachable!("Don't know symbol `{}`", s)
+            _ => unreachable!("Don't know symbol `{}`", s),
         }
     }
 }
@@ -67,28 +67,31 @@ impl ToSource for Operator {
 
 impl ToSource for Binary {
     fn to_source(&self) -> String {
-        format!("({} {} {})", self.left.to_source(), 
-            self.operator.to_source(), self.right.to_source())
+        format!(
+            "({} {} {})",
+            self.left.to_source(),
+            self.operator.to_source(),
+            self.right.to_source()
+        )
     }
 }
 
 impl Binary {
     // TODO it is not a constructor of binary so it should have different name
-    pub fn build_expr(operator: Pair<'_, Rule>, left: ExprResult, right: ExprResult, source: &str) -> ExprResult {
+    pub fn build_expr(
+        operator: Pair<'_, Rule>,
+        left: ExprResult,
+        right: ExprResult,
+        source: &str,
+    ) -> ExprResult {
         let span = operator.as_span();
         let position = Position::new(span.start(), span.end(), source);
-        Ok(
-            Rc::new(
-                Expr::Binary(
-                    Binary { 
-                        left: left.unwrap(), 
-                        right: right.unwrap(), 
-                        operator: operator.as_str().into(),
-                        position
-                    }
-                )
-            )
-        )
+        Ok(Rc::new(Expr::Binary(Binary {
+            left: left.unwrap(),
+            right: right.unwrap(),
+            operator: operator.as_str().into(),
+            position,
+        })))
     }
 }
 
@@ -98,44 +101,55 @@ impl Execute for Binary {
         // In such phase all the Binary expression could be replaced with Bind so I couldn't
         // do it every time a binary is called
 
-        let bind =
-            match self {
-                // Binding-like operators cannot be defined as build-ins because these functions has no access
-                // stack. They can return Bind expressions though
-                Binary {left, right, operator: Operator::LeftPipe, position} => {
-                    let args = vec![left.clone()];
-                    let fun = right.clone();
-                    Bind {
-                        args,
-                        fun,
-                        position: position.clone()
-                    }
+        let bind = match self {
+            // Binding-like operators cannot be defined as build-ins because these functions has no access
+            // stack. They can return Bind expressions though
+            Binary {
+                left,
+                right,
+                operator: Operator::LeftPipe,
+                position,
+            } => {
+                let args = vec![left.clone()];
+                let fun = right.clone();
+                Bind {
+                    args,
+                    fun,
+                    position: position.clone(),
                 }
-                Binary {left, right, operator: Operator::RightPipe, position} => {
-                    let args = vec![right.clone()];
-                    let fun = left.clone();
-                    Bind {
-                        args,
-                        fun,
-                        position: position.clone()
-                    }
+            }
+            Binary {
+                left,
+                right,
+                operator: Operator::RightPipe,
+                position,
+            } => {
+                let args = vec![right.clone()];
+                let fun = left.clone();
+                Bind {
+                    args,
+                    fun,
+                    position: position.clone(),
                 }
-                Binary {left, right, operator, position} => {
-                    let args = vec![
-                        left.clone(),
-                        right.clone()
-                    ];
-                    let fun = Rc::new(Expr::Ident(Ident {
-                        label: operator.to_source(),
-                        position: position.clone()
-                    }));
-                    Bind {
-                        args,
-                        fun,
-                        position: self.position.clone()
-                    }
-                },
-            };
+            }
+            Binary {
+                left,
+                right,
+                operator,
+                position,
+            } => {
+                let args = vec![left.clone(), right.clone()];
+                let fun = Rc::new(Expr::Ident(Ident {
+                    label: operator.to_source(),
+                    position: position.clone(),
+                }));
+                Bind {
+                    args,
+                    fun,
+                    position: self.position.clone(),
+                }
+            }
+        };
 
         bind.execute(stack, context)
     }
@@ -145,11 +159,14 @@ impl Execute for Binary {
 mod tests {
     use super::*;
     use crate::execute::execute_sane;
-    use crate::parse::parse_sane;
+    use crate::parse::parse_file;
 
     #[test]
     fn test_parse_binary() {
-        let result = &*parse_sane("a |> b |> c").unwrap().to_source();
+        let context = &mut Context::new(vec![]);
+        let result = &*parse_file("a |> b |> c", "ADHOC", context)
+            .unwrap()
+            .to_source();
         assert_eq!(result, "((a |> b) |> c)");
     }
 
@@ -171,22 +188,27 @@ mod tests {
         assert_eq!(result, "4.0");
     }
 
-
     #[test]
     fn test_execute_binary_2() {
-        let result = &*execute_sane("inc <| print <| inc <| inc <| 1").unwrap().to_source();
+        let result = &*execute_sane("inc <| print <| inc <| inc <| 1")
+            .unwrap()
+            .to_source();
         assert_eq!(result, "4.0");
     }
 
     #[test]
     fn test_execute_binary_3() {
-        let result = &*execute_sane("1 |> inc |> add <| inc <| inc <| 1").unwrap().to_source();
+        let result = &*execute_sane("1 |> inc |> add <| inc <| inc <| 1")
+            .unwrap()
+            .to_source();
         assert_eq!(result, "5.0");
     }
 
     #[test]
     fn test_execute_binary_curry_0() {
-        let result = &*execute_sane("inc <| print <| inc <| inc <| 1").unwrap().to_source();
+        let result = &*execute_sane("inc <| print <| inc <| inc <| 1")
+            .unwrap()
+            .to_source();
         assert_eq!(result, "4.0");
     }
 

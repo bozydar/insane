@@ -1,11 +1,11 @@
-use pest::iterators::Pairs;
 use pest::error::InputLocation;
 use pest::iterators::Pair;
+use pest::iterators::Pairs;
 use pest::prec_climber::{Assoc, Operator, PrecClimber};
 use pest::Span;
 use std::fmt::Debug;
-use std::rc::Rc;
 use std::path;
+use std::rc::Rc;
 
 use crate::binary::Binary;
 use crate::bind::Bind;
@@ -16,10 +16,10 @@ use crate::error::Error;
 use crate::file::File;
 use crate::fun::Fun;
 use crate::ident::Ident;
-use crate::ns_ident::NSIdent;
 use crate::if_then_else::IfThenElse;
 use crate::let_in::LetIn;
 use crate::list::List;
+use crate::ns_ident::NSIdent;
 use crate::pest::Parser;
 
 pub trait ToSource {
@@ -30,16 +30,20 @@ pub trait ToSource {
 pub struct Input<'s> {
     pub pair: Pair<'s, Rule>,
     pub path: &'s str,
-    pub source: &'s str
+    pub source: &'s str,
 }
 
-impl <'s> Input<'s> {
+impl<'s> Input<'s> {
     pub fn new(pair: Pair<'s, Rule>, source: &'s str, path: &'s str) -> Self {
         Self { pair, path, source }
     }
 
     pub fn with_pair(&self, pair: &Pair<'s, Rule>) -> Self {
-        Self { pair: pair.clone(), path: self.path, source: self.source }
+        Self {
+            pair: pair.clone(),
+            path: self.path,
+            source: self.source,
+        }
     }
 
     pub fn as_rule(&self) -> Rule {
@@ -235,19 +239,13 @@ pub fn parse_file(source: &str, path: &str, context: &mut Context) -> ExprResult
     }
 }
 
-pub fn parse_sane(input: &str) -> ExprResult {
-    parse_file(input, "ADHOC", &mut Context::new(vec![]))
-}
-
 fn precedence_climber() -> PrecClimber<Rule> {
     PrecClimber::new(vec![
         Operator::new(Rule::op_left_pipe, Assoc::Left)
             | Operator::new(Rule::op_right_pipe, Assoc::Right),
         Operator::new(Rule::op_dollar, Assoc::Right),
-        Operator::new(Rule::op_plus, Assoc::Left)
-            | Operator::new(Rule::op_minus, Assoc::Left),
-        Operator::new(Rule::op_star, Assoc::Left)
-            | Operator::new(Rule::op_slash, Assoc::Left),
+        Operator::new(Rule::op_plus, Assoc::Left) | Operator::new(Rule::op_minus, Assoc::Left),
+        Operator::new(Rule::op_star, Assoc::Left) | Operator::new(Rule::op_slash, Assoc::Left),
     ])
 }
 
@@ -255,7 +253,7 @@ lazy_static! {
     pub static ref PREC_CLIMBER: PrecClimber<Rule> = precedence_climber();
 }
 
-pub fn climb(input: Input<'_,>, context: &mut Context) -> ExprResult {
+pub fn climb(input: Input<'_>, context: &mut Context) -> ExprResult {
     let source = &*input.source.clone();
     let primary = |pair: Pair<'_, Rule>| Expr::from_input(input.with_pair(&pair), context);
 
@@ -270,13 +268,17 @@ mod tests {
 
     #[test]
     fn parse_let_in_0() {
-        let result = parse_sane("let a = 1 in a").unwrap().to_source();
+        let context = &mut Context::new(vec![]);
+        let result = parse_file("let a = 1 in a", "ADHOC", context)
+            .unwrap()
+            .to_source();
         assert_eq!(result, "let a = 1.0 in a");
     }
 
     #[test]
     fn parse_let_in_1() {
-        let result = parse_sane("let a = 1 and let b = 2 in [a; b]")
+        let context = &mut Context::new(vec![]);
+        let result = parse_file("let a = 1 and let b = 2 in [a; b]", "ADHOC", context)
             .unwrap()
             .to_source();
         assert_eq!(result, "let a = 1.0 and let b = 2.0 in [a; b]");
@@ -284,13 +286,19 @@ mod tests {
 
     #[test]
     fn parse_bind_1() {
-        let result = parse_sane("(f(1))(2)").unwrap().to_source();
+        let context = &mut Context::new(vec![]);
+        let result = parse_file("(f(1))(2)", "ADHOC", context)
+            .unwrap()
+            .to_source();
         assert_eq!(result, "(f(1.0))(2.0)");
     }
 
     #[test]
     fn parse_fun() {
-        let result = &*parse_sane("fun a => a").unwrap().to_source();
+        let context = &mut Context::new(vec![]);
+        let result = &*parse_file("fun a => a", "ADHOC", context)
+            .unwrap()
+            .to_source();
         assert_eq!(result, "fun a => a");
     }
 
