@@ -1,10 +1,10 @@
 use crate::parse::Input;
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
+use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput};
 use crate::context::Context;
 use crate::error::Error;
 use crate::execute::{Scope, Execute};
-use pest::iterators::{Pair};
+
 
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,7 +28,7 @@ impl Ident {
 
 
 impl FromInput for Ident {
-    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+    fn from_input(input: Input<'_>, _context: &mut Context) -> ExprResult {
         let _position = Position::from_input(&input);
         Ok(Rc::new(Expr::Ident(Ident::try_from_input(input)?)))
     }

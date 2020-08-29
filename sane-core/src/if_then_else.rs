@@ -2,7 +2,7 @@ use crate::parse::Input;
 use std::rc::Rc;
 use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
-use pest::iterators::{Pair, Pairs};
+use pest::iterators::{Pairs};
 
 
 use crate::execute::{execute, Execute, Scope};

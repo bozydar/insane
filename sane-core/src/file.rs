@@ -3,8 +3,8 @@ use crate::const_expr::{Const, ConstType};
 use crate::context::Context;
 use crate::error::Error;
 use crate::ident::Ident;
-use crate::parse::{Expr, ExprResult, FromInput, Position, Rule, ToSource};
-use pest::iterators::Pair;
+use crate::parse::{Expr, ExprResult, FromInput, Position, ToSource};
+
 use std::rc::Rc;
 
 use crate::execute::{execute, Execute, Scope};
@@ -239,7 +239,7 @@ impl Execute for File {
 }
 
 impl File {
-    pub fn execute_exposed(&self, _scope: &mut Scope, _context: &Context, ident: &Ident) -> ExprResult {
+    pub fn find_exposed(&self, ident: &Ident) -> ExprResult {
         if let Some(definition) = self.definitions.iter().cloned()
             .find(|definition| {
                 *definition.def.0 == ident.label
@@ -339,7 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn execute_exposed_0() {
+    fn find_exposed_0() {
         let context = &mut Context::new(vec![]);
         let scope = &mut Scope::new();
         let expr = parse_file(
@@ -352,7 +352,7 @@ mod tests {
         let ident = Ident { label: String::from("a"), position: Position::new(0, 0, "a") };
         let result =
             match expr.borrow() {
-                Expr::File(file) => file.execute_exposed(scope, context, &ident),
+                Expr::File(file) => file.find_exposed(&ident),
                 _ => panic!("{:?} is not a File", expr)
             }.unwrap();
         assert_eq!(result.to_source(), "1.0");

@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::file::File;
 use crate::ident::Ident;
 use crate::parse;
-use core::cell::RefCell;
+
 use std::env;
 use std::fs;
 use std::io::prelude::*;
@@ -11,7 +11,7 @@ use std::rc::Rc;
 use crate::parse::Expr;
 use crate::ns_ident::NSIdent;
 use crate::build_in_functions::build_in_functions;
-use std::fs::canonicalize;
+
 
 pub type Path = String;
 
@@ -32,28 +32,15 @@ impl Context {
         }
     }
 
-    pub fn from_new_source(&self, source: &str) -> Context {
-        Context {
-            look_path: self.look_path.clone(),
-            files: self.files.clone(),
-            files_in_processing: self.files_in_processing.clone()
-        }
-    }
-
     pub fn expr_by_ns_ident(&self, ns_ident: &NSIdent) -> Result<Rc<Expr>, Error> {
         if let Some(found_file) = self
             .find_in_files(&ns_ident.nspace) {
-            let scope = &mut build_in_functions();
-            // TODO The problem is that "self" context is context of file which calls the module
-            // but we don't have the contexts of the called module/file.
-            // Looks like File should keep `source: Rc<str>` as well to create Context
-            // Not sure if Context should keep sources...
-            let context = self.from_new_source(&*found_file.name);
+
             let ident = Ident {
                 label: ns_ident.label.clone(),
                 position: ns_ident.position.clone()
             };
-            (*found_file).execute_exposed(scope, &context, &ident)
+            (*found_file).find_exposed(&ident)
         } else {
             Error::new(
                 &format!("Can't find module `{}`", &ns_ident.nspace),
@@ -207,7 +194,6 @@ module_0.a"#
     #[test]
     fn load_rec_err() {
         let context = &mut Context::new(vec![String::from("./src")]);
-        let scope = &mut Scope::new();
         let result = parse_file(
             r#"
         use (module_2)"#,

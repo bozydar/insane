@@ -1,8 +1,8 @@
 use crate::parse::Input;
 use std::rc::Rc;
-use crate::parse::{Expr, Position, ExprEq, ExprResult, ToSource, FromInput, Rule};
+use crate::parse::{Expr, Position, ExprEq, ExprResult, ToSource, FromInput};
 use crate::context::Context;
-use pest::iterators::Pair;
+
 
 use crate::execute::{Execute, Scope, execute};
 

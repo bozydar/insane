@@ -4,7 +4,7 @@ use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use crate::error::Error;
 use crate::execute::{Scope, Execute, execute};
-use pest::iterators::{Pair, Pairs};
+use pest::iterators::{Pairs};
 use crate::fun::Fun;
 use std::cell::RefCell;
 use crate::build_in::BuildInFun;

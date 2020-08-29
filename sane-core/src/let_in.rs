@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use crate::execute::{Scope, Execute, execute};
-use pest::iterators::{Pair, Pairs};
+use pest::iterators::{Pairs};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct LetIn {

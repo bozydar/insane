@@ -4,7 +4,7 @@ use crate::parse::{Expr, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use crate::error::Error;
 use crate::execute::{Scope, Execute, execute};
-use pest::iterators::{Pair, Pairs};
+use pest::iterators::{Pairs};
 
 
 #[derive(Debug, PartialEq, Clone)]
@@ -37,7 +37,7 @@ impl NSIdent {
 
 
 impl FromInput for NSIdent {
-    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+    fn from_input(input: Input<'_>, _context: &mut Context) -> ExprResult {
         let _position = Position::from_input(&input);
         Ok(Rc::new(Expr::NSIdent(NSIdent::try_from_input(input)?)))
     }

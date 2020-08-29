@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::parse::{Expr, ExprEq, Position, ExprResult, ToSource, FromInput, Rule};
 use crate::context::Context;
 use crate::error::Error;
-use pest::iterators::{Pair};
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ConstType {
@@ -64,7 +64,7 @@ impl ToSource for Const {
 }
 
 impl FromInput for Const {
-    fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
+    fn from_input(input: Input<'_>, _context: &mut Context) -> ExprResult {
         let input_ = input.clone();
         let pair = input.into_inner().next().unwrap();
         let rule = pair.as_rule();
