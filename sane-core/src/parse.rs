@@ -243,6 +243,7 @@ fn precedence_climber() -> PrecClimber<Rule> {
     PrecClimber::new(vec![
         Operator::new(Rule::op_left_pipe, Assoc::Left)
             | Operator::new(Rule::op_right_pipe, Assoc::Right),
+        Operator::new(Rule::op_comma, Assoc::Left),
         Operator::new(Rule::op_dollar, Assoc::Right),
         Operator::new(Rule::op_eq, Assoc::Left) | Operator::new(Rule::op_neq, Assoc::Left),
         Operator::new(Rule::op_plus, Assoc::Left) | Operator::new(Rule::op_minus, Assoc::Left),
@@ -288,10 +289,10 @@ mod tests {
     #[test]
     fn parse_bind_1() {
         let context = &mut Context::new(vec![]);
-        let result = parse_file("(f(1))(2)", "ADHOC", context)
+        let result = parse_file("`f(1)`(2)", "ADHOC", context)
             .unwrap()
             .to_source();
-        assert_eq!(result, "(f(1.0))(2.0)");
+        assert_eq!(result, "`f(1.0)`(2.0)");
     }
 
     #[test]

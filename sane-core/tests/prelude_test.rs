@@ -8,7 +8,7 @@ use std::env;
 fn test_reduce_0() {
     let result = execute_sane(
         r#"use (prelude)
-           [1; 2; 3] |> ((prelude.reduce(add))(0))
+           [1; 2; 3] |> prelude.reduce, add, 0
         "#,
     )
         .unwrap()
@@ -20,7 +20,7 @@ fn test_reduce_0() {
 fn test_map_0() {
     let result = execute_sane(
         r#"use (prelude)
-           [1; 2; 3] |> (prelude.map(fun x => x + 1))
+           [1; 2; 3] |> prelude.map, (fun x => x + 1)
         "#,
     )
         .unwrap()

@@ -20,7 +20,7 @@ pub struct Bind {
 impl ToSource for Bind {
     fn to_source(&self) -> String {
         match &*self.fun {
-            Expr::Ident(_) => format!(
+            Expr::Ident(_)|Expr::NSIdent(_) => format!(
                 "{}({})",
                 self.fun.to_source(),
                 self.args
@@ -30,7 +30,7 @@ impl ToSource for Bind {
                     .join(" ")
             ),
             _ => format!(
-                "({})({})",
+                "`{}`({})",
                 self.fun.to_source(),
                 self.args
                     .iter()
@@ -76,7 +76,10 @@ impl Execute for Bind {
                 Expr::BuildIn(build_in) => (build_in.arity, build_in.name.clone()),
                 _ => {
                     // println!("{:?}", stack);
-                    unreachable!("{:?}", current_fun)
+                    return Error::new(
+                        &format!("It is not a function `{:?}`", current_fun),
+                        position
+                    ).into()
                 }
             };
             if current_args.len() > arity {
@@ -167,7 +170,7 @@ mod tests {
 
     #[test]
     fn test_execute_bind_0() {
-        let result = &*execute_sane("(fun a => a)(2)").unwrap().to_source();
+        let result = &*execute_sane("`fun a => a`(2)").unwrap().to_source();
         assert_eq!(result, "2.0");
     }
 
@@ -182,7 +185,7 @@ mod tests {
     #[test]
     fn test_execute_bind_2() {
         // TODO if we tread parenthesis as another operator it will possible to: f (2) (1)
-        let result = &*execute_sane("let f = fun a => fun b => a in (f(2))(1)")
+        let result = &*execute_sane("let f = fun a => fun b => a in `f(2)`(1)")
             .unwrap()
             .to_source();
         assert_eq!(result, "2.0");
@@ -307,7 +310,7 @@ mod tests {
         .to_source();
         assert_eq!(
             result,
-            "fun $param_0 $param_1 => (fun a b c => a)(1.0 $param_0 $param_1)"
+            "fun $param_0 $param_1 => `fun a b c => a`(1.0 $param_0 $param_1)"
         );
     }
 

@@ -17,7 +17,7 @@ fn test_reduce_0() {
                      reduce_0(new_acc t)
              in reduce_0
            in
-           [1; 2; 3] |> (reduce(add)) <| 0
+           [1; 2; 3] |> reduce, add, 0
         "#,
     )
     .unwrap()

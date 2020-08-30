@@ -21,6 +21,7 @@ pub struct Binary {
 pub enum Operator {
     LeftPipe,
     RightPipe,
+    Comma,
     Dollar,
     Plus,
     Minus,
@@ -32,6 +33,7 @@ pub enum Operator {
 
 pub(crate) const LEFT_PIPE: &str = "|>";
 pub(crate) const RIGHT_PIPE: &str = "<|";
+pub(crate) const COMMA: &str = ",";
 pub(crate) const DOLLAR: &str = "$";
 pub(crate) const PLUS: &str = "+";
 pub(crate) const MINUS: &str = "-";
@@ -45,6 +47,7 @@ impl From<&str> for Operator {
         match s {
             LEFT_PIPE => Operator::LeftPipe,
             RIGHT_PIPE => Operator::RightPipe,
+            COMMA => Operator::Comma,
             DOLLAR => Operator::Dollar,
             PLUS => Operator::Plus,
             MINUS => Operator::Minus,
@@ -62,6 +65,7 @@ impl ToSource for Operator {
         match self {
             Operator::LeftPipe => LEFT_PIPE.to_string(),
             Operator::RightPipe => RIGHT_PIPE.to_string(),
+            Operator::Comma => COMMA.to_string(),
             Operator::Dollar => DOLLAR.to_string(),
             Operator::Plus => PLUS.to_string(),
             Operator::Minus => MINUS.to_string(),
@@ -130,6 +134,20 @@ impl Execute for Binary {
                 left,
                 right,
                 operator: Operator::RightPipe,
+                position,
+            } => {
+                let args = vec![right.clone()];
+                let fun = left.clone();
+                Bind {
+                    args,
+                    fun,
+                    position: position.clone(),
+                }
+            },
+            Binary {
+                left,
+                right,
+                operator: Operator::Comma,
                 position,
             } => {
                 let args = vec![right.clone()];
@@ -218,6 +236,16 @@ mod tests {
             .unwrap()
             .to_source();
         assert_eq!(result, "4.0");
+    }
+
+    #[test]
+    fn test_execute_binary_curry_1() {
+        let result = &*execute_sane(r#"
+        let f = fun a b c => a + b + c
+        in f, 1, 2, 3"#)
+            .unwrap()
+            .to_source();
+        assert_eq!(result, "6.0");
     }
 
     #[test]
