@@ -27,3 +27,30 @@ fn test_map_0() {
         .to_source();
     assert_eq!(result, "[2.0; 3.0; 4.0]");
 }
+
+#[test]
+fn test_nth_0() {
+    let result = execute_sane(
+        r#"use (prelude)
+          prelude.nth, [1; 2; 3], 0
+          prelude.nth, [1; 2; 3], 0
+        "#,
+    )
+        .unwrap()
+        .to_source();
+    assert_eq!(result, "1.0");
+}
+
+// TODO Fix because causes stacks overflow
+// #[test]
+// fn test_nth_1() {
+//     let result = execute_sane(
+//         // Introduce gt lt to use in the function
+//         r#"use (prelude)
+//           prelude.nth, [1; 2; 3], -1
+//         "#,
+//     )
+//         .unwrap()
+//         .to_source();
+//     assert_eq!(result, "Out of bound");
+// }

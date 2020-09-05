@@ -43,7 +43,7 @@ impl FromInput for NSIdent {
 
 impl Execute for NSIdent {
     fn execute(&self, scope: &mut Scope, context: &Context) -> ExprResult {
-        dbg!(scope.clone());
+        // dbg!(scope.clone());
         // TODO Introduce to Context execute method which will find the file by nspace
         // and return the expression designed by identifier
 

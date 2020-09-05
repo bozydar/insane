@@ -11,6 +11,7 @@ use rustyline_derive::Helper;
 
 use sane_core::build_in_functions::build_in_functions;
 use sane_core::context;
+use sane_core::execute::look_path;
 
 #[derive(Helper)]
 struct MyHelper {
@@ -105,6 +106,7 @@ pub fn main_loop() -> rustyline::Result<()> {
     }
     let mut count = 1;
     let stack = &mut build_in_functions();
+    let context = &mut context::Context::new(look_path());
     loop {
         let p = format!("{}> ", count);
         rl.helper_mut().expect("No helper").colored_prompt = format!("\x1b[1;32m{}\x1b[0m", p);
@@ -112,10 +114,10 @@ pub fn main_loop() -> rustyline::Result<()> {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                match crate::execute_string(&line, "REPL", &mut context::Context::new(vec![]), stack) {
+                match crate::execute_string(&line, "REPL", context, stack) {
                     Ok(result) => {
-                        println!("{}", result);
-                        println!("{:?}", stack);
+                        println!(">>> {}", result);
+                        // println!("{:?}", stack);
                     },
                     Err(err) => println!("{}", err)
                 }

@@ -14,7 +14,7 @@ pub type Scope = Vec<Variable>;
 
 pub fn execute_sane(input: &str) -> ExprResult {
     let look_path = look_path();
-    dbg!(&look_path);
+    // dbg!(&look_path);
     let mut context = Context::new(look_path);
 
     let expr = parse_file(input, "ADHOC", &mut context)?;
@@ -22,7 +22,7 @@ pub fn execute_sane(input: &str) -> ExprResult {
     execute(expr, stack, &context)
 }
 
-fn look_path() -> Vec<String> {
+pub fn look_path() -> Vec<String> {
     // :facepalm:
     let mut result: Vec<String> = vec![];
     if let Some(val) = env::var_os("SANE_PATH") {

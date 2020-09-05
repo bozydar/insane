@@ -265,10 +265,8 @@ fn expr_else_unit(input: Input<'_>, context: &mut Context) -> ExprResult {
 
     let input_ = input.clone();
     if let Some(ident) = input.into_inner().next() {
-        print!("HERE");
         Expr::from_input(input_.with_pair(&ident), context)
     } else {
-        print!("unit!!!!!!!");
         Ok(Rc::new(Expr::Const(Const {
             value: ConstType::Unit,
             position,
@@ -347,7 +345,7 @@ mod tests {
             context,
         )
         .unwrap();
-        dbg!(result);
+        // dbg!(result);
         // assert_eq!(result, "[1.0; 2.0]");
     }
 

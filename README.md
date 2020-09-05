@@ -34,8 +34,15 @@
   * automatic function composition is not possible without types because it is
     hard to determine if function is an argument or it should be autoapplied.
 * zero-arity functions 
-* def a = expr    == let a = expr in a
-* modules/namespaces
+* def a = expr    == let a = expr in a - DONE
+
+TODO:
+=====
+* U o S (a) <==> U(S(a))  (hard without knowing the type)
+* Tail recursion optimization
+* Handling errors with messages
+
+* modules/namespaces - DONE
   * Searching for symbol:
     * "use" opens a module and loads all public symbol with prefix
     * referencing uses the prefix. No submodules for now.
@@ -47,6 +54,7 @@
   def count = fun ...
   def each = fun ...
   ``` 
+  
 * tails recursion optimization
   * if the last instruction of function is binding itself -> replace the argument on the stack instead of pushing a new one (and replace all the captured values)
   * if the last instruction of function is binding to another -> replace itself with the called function on the AST and remove parameter?

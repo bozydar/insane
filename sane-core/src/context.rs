@@ -51,7 +51,7 @@ impl Context {
         // Add current dir as a starting one on path
         let current_dir = env::current_dir().unwrap().to_str().unwrap().to_owned();
         look_path_.push(current_dir.clone());
-        dbg!(current_dir);
+        // dbg!(current_dir);
         for path in look_path.iter() {
             let path = fs::canonicalize(path).unwrap();
             look_path_.push(path.to_str().unwrap().to_string())
@@ -150,7 +150,7 @@ mod tests {
         .unwrap();
         // TODO Why I can't find `module_0.a` in the context even though
         // it generates the source
-        dbg!(&context);
+        // dbg!(&context);
 
         assert_eq!(
             result.to_source(),

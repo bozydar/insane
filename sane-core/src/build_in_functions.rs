@@ -28,6 +28,7 @@ pub fn build_in_functions() -> Scope {
         create_build_in("div".to_string(), sane_div, 2),
         create_build_in("/".to_string(), sane_div, 2),
         create_build_in("print".to_string(), sane_print, 1),
+        // create_build_in("nth".to_string(), sane_nth, 1)
         (
             "true".to_string(),
             Rc::new(Expr::Const(Const {
@@ -77,6 +78,25 @@ fn sane_count(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         _ => unreachable!(),
     }
 }
+
+// fn sane_nth(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
+//     let params = validate("head", params, position, vec!["List", "Numeric"])?;
+//
+//     if let (Some(left), Some(right)) = (params.get(0).cloned(), params.get(1).cloned()) {
+//         match &**params.first().unwrap() {
+//             Expr::List(List { items, position }) => {
+//                 if let Some(item) = items.get() {
+//                     Ok(item.clone())
+//                 } else {
+//                     Error::new("The list is empty", position).into()
+//                 }
+//             },
+//             _ => unreachable!(),
+//         }
+//     } else {
+//         unreachable!()
+//     }
+// }
 
 fn sane_concat(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("head", params, &position, vec!["List", "List"])?;
