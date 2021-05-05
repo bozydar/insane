@@ -193,7 +193,7 @@ module_0.a"#
 
         assert_eq!(
             result.message,
-            r#"Circular reference to `/Users/bozydarsobczak/Workspaces/insane/sane-core/src/module_2.sn`"#
+            r#"Circular reference to `/Users/bozydar/Workspaces/insane/sane-core/src/module_2.sn`"#
         )
     }
 
