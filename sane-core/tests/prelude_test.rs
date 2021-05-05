@@ -33,7 +33,6 @@ fn test_nth_0() {
     let result = execute_sane(
         r#"use (prelude)
           prelude.nth, [1; 2; 3], 0
-          prelude.nth, [1; 2; 3], 0
         "#,
     )
         .unwrap()
