@@ -78,7 +78,7 @@ mod tests {
     fn test_execute_if_1() {
         let result = execute_sane(
             r#"let plus_one = fun a =>
-                    inc(a)
+                    inc, a
                 in
                 let b = 1 |> plus_one in
                 if b |> eq <| 2 then 1 else 2"#,

@@ -6,40 +6,40 @@ give (
 
 def reduce = fun fn =>
   let reduce_0 = fun acc list =>
-    if count(list) == 0 then
+    if (count, list) == 0 then
       acc
     else
       let h = list |> head
       in
         let t = list |> tail
         in
-          let new_acc = fn(h acc)
+          let new_acc = fn, h, acc
           in
-            reduce_0(new_acc t)
+            reduce_0, new_acc, t
   in
     reduce_0
 
 def map = fun fn =>
   let map_0 = fun list =>
-    if count(list) == 0 then
+    if (count, list) == 0 then
       []
     else
       let h = list |> head |> fn
       in
-        let t = tail(list)
+        let t = tail, list
         in
-          concat([h] map_0(t))
+          concat, [h], (map_0, t)
   in
     map_0
 
 def nth = fun list n =>
   let nth_0 = fun list n =>
-    if count(list) ==  0 - 1
+    if (count, list) ==  0 - 1
     then
-      print("Out of bound")
+      print, "Out of bound"
     else if n == 0 then
       head, list
     else
-      nth_0(tail(list) n - 1)
+      nth_0, (tail, list), (n - 1)
   in
-  nth_0(list n)
+  nth_0, list, n

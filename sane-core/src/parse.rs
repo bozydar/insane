@@ -203,7 +203,7 @@ impl FromInput for Expr {
             Rule::constant => Const::from_input(input, context),
             Rule::let_in => LetIn::from_input(input, context),
             Rule::ident => Ident::from_input(input, context),
-            Rule::bind => Bind::from_input(input, context),
+            // Rule::bind => Bind::from_input(input, context),
             Rule::fun => Fun::from_input(input, context),
             Rule::list => List::from_input(input, context),
             Rule::ns_ident => NSIdent::from_input(input, context),
@@ -289,10 +289,10 @@ mod tests {
     #[test]
     fn parse_bind_1() {
         let context = &mut Context::new(vec![]);
-        let result = parse_file("`f(1)`(2)", "ADHOC", context)
+        let result = parse_file("(f, 1), 2", "ADHOC", context)
             .unwrap()
             .to_source();
-        assert_eq!(result, "`f(1.0)`(2.0)");
+        assert_eq!(result, "((f , 1.0) , 2.0)");
     }
 
     #[test]

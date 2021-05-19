@@ -448,13 +448,13 @@ mod tests {
 
     #[test]
     fn test_execute_eq_0() {
-        let result = &*execute_sane("eq(1 1)").unwrap().to_source();
+        let result = &*execute_sane("eq, 1, 1").unwrap().to_source();
         assert_eq!(result, "true");
     }
 
     #[test]
     fn test_execute_eq_1() {
-        let result = &*execute_sane("eq(fun a => b fun a => b)")
+        let result = &*execute_sane("eq, (fun a => b), (fun a => b)")
             .unwrap()
             .to_source();
         assert_eq!(result, "false");
@@ -462,7 +462,7 @@ mod tests {
 
     #[test]
     fn test_execute_eq_3() {
-        let result = &*execute_sane("eq([] [])").unwrap().to_source();
+        let result = &*execute_sane("eq, [], []").unwrap().to_source();
         assert_eq!(result, "true");
     }
 
@@ -483,7 +483,7 @@ mod tests {
         let result = &*execute_sane(
             r#"let eqa = fun left =>
                   let eqa_ = fun right =>
-                    eq(left right)
+                    eq, left, right
                   in eqa_
                in 1 |> eqa <| 1"#,
         )
@@ -496,7 +496,7 @@ mod tests {
     fn test_execute_inc_0() {
         let result = execute_sane(
             r#"let a = 1 in
-                 inc(a)"#,
+                 inc, a"#,
         )
         .unwrap()
         .to_source();
@@ -517,7 +517,7 @@ mod tests {
 
     #[test]
     fn test_concat_0() {
-        let result = execute_sane(r#"concat([1] [2])"#).unwrap().to_source();
+        let result = execute_sane(r#"concat, [1], [2]"#).unwrap().to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 

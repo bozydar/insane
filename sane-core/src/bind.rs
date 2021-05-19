@@ -170,13 +170,13 @@ mod tests {
 
     #[test]
     fn test_execute_bind_0() {
-        let result = &*execute_sane("`fun a => a`(2)").unwrap().to_source();
+        let result = &*execute_sane("(fun a => a) , 2").unwrap().to_source();
         assert_eq!(result, "2.0");
     }
 
     #[test]
     fn test_execute_bind_1() {
-        let result = &*execute_sane("let f = fun a => a in f(2)")
+        let result = &*execute_sane("let f = fun a => a in f , 2")
             .unwrap()
             .to_source();
         assert_eq!(result, "2.0");
@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn test_execute_bind_2() {
         // TODO if we tread parenthesis as another operator it will possible to: f (2) (1)
-        let result = &*execute_sane("let f = fun a => fun b => a in `f(2)`(1)")
+        let result = &*execute_sane("let f = fun a => fun b => a in f , 2 , 1")
             .unwrap()
             .to_source();
         assert_eq!(result, "2.0");
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_execute_bind_3() {
-        let result = &*execute_sane("let f = fun a b => [a; b] in f(1 2)")
+        let result = &*execute_sane("let f = fun a b => [a; b] in f , 1 , 2")
             .unwrap()
             .to_source();
         assert_eq!(result, "[1.0; 2.0]");
@@ -204,11 +204,11 @@ mod tests {
         let result = &*execute_sane(
             r#"let c = fun a =>
                  fun b =>
-                   eq(a b)
+                   eq , a , b
                in
-                 let curr = c(1)
+                 let curr = c , 1
                  in
-                   curr(2)"#,
+                   curr , 2"#,
         )
         .unwrap()
         .to_source();
@@ -219,8 +219,8 @@ mod tests {
     fn test_recursive_0() {
         let result = execute_sane(
             r#"let add_till_10 = fun a =>
-                 if eq(a 10.0) then a else add_till_10(inc(a))
-               in add_till_10(0)"#,
+                 if eq , a , 10.0 then a else add_till_10 , (inc , a)
+               in add_till_10, 0"#,
         )
         .unwrap()
         .to_source();
@@ -231,10 +231,10 @@ mod tests {
     fn test_recursive_1() {
         let result = execute_sane(
             r#"let flip = fun a =>
-                 if eq(a 10) then a else flop(inc(a))
+                 if eq , a , 10 then a else flop , (inc , a)
                and let flop = fun b =>
-                 flip(b)
-               in flip(0)"#,
+                 flip , b
+               in flip , 0"#,
         )
         .unwrap()
         .to_source();
@@ -245,56 +245,24 @@ mod tests {
     fn test_recursive_2() {
         let result = execute_sane(
             r#"let flip = fun a =>
-                 if eq(a 10) then a else flop(inc(a))
+                 if eq , a , 10 then a else flop, (inc, a)
                in let flop = fun b =>
-                 flip(b)
-               in flip(0)"#,
+                 flip, b
+               in flip, 0"#,
         );
         assert_eq!(
             result,
             Err(Error {
                 message: "Ident `flop` not found".to_string(),
                 backtrace: vec![
-                    Position {
-                        start: 61,
-                        end: 65,
-                        source: Rc::from("ADHOC")
-                    },
-                    Position {
-                        start: 61,
-                        end: 65,
-                        source: Rc::from("ADHOC")
-                    },
-                    Position {
-                        start: 61,
-                        end: 73,
-                        source: Rc::from("ADHOC")
-                    },
-                    Position {
-                        start: 37,
-                        end: 73,
-                        source: Rc::from("ADHOC")
-                    },
-                    Position {
-                        start: 155,
-                        end: 162,
-                        source: Rc::from("ADHOC")
-                    },
-                    Position {
-                        start: 155,
-                        end: 162,
-                        source: Rc::from("ADHOC")
-                    },
-                    Position {
-                        start: 92,
-                        end: 162,
-                        source: Rc::from("ADHOC")
-                    },
-                    Position {
-                        start: 0,
-                        end: 162,
-                        source: Rc::from("ADHOC")
-                    }
+                    Position { start: 64, end: 68, source: Rc::from("ADHOC") },
+                    Position { start: 64, end: 68, source: Rc::from("ADHOC") },
+                    Position { start: 68, end: 69, source: Rc::from("let flip = fun a =>\n                 if eq , a , 10 then a else flop, (inc, a)\n               in let flop = fun b =>\n                 flip, b\n               in flip, 0") },
+                    Position { start: 37, end: 94, source: Rc::from("ADHOC") },
+                    Position { start: 164, end: 165, source: Rc::from("let flip = fun a =>\n                 if eq , a , 10 then a else flop, (inc, a)\n               in let flop = fun b =>\n                 flip, b\n               in flip, 0") },
+                    Position { start: 160, end: 167, source: Rc::from("ADHOC") },
+                    Position { start: 97, end: 167, source: Rc::from("ADHOC") },
+                    Position { start: 0, end: 167, source: Rc::from("ADHOC") }
                 ]
             })
         );
@@ -304,7 +272,7 @@ mod tests {
     fn test_auto_curr_1() {
         let result = execute_sane(
             r#"let f = fun a b c => a
-               in f(1)"#,
+               in f, 1"#,
         )
         .unwrap()
         .to_source();
@@ -318,8 +286,8 @@ mod tests {
     fn test_auto_curr_2() {
         let result = execute_sane(
             r#"let f = fun a b c => [a; b; c]
-               in let g = f(1)
-               in g(2 3)"#,
+               in let g = f, 1
+               in g, 2, 3"#,
         )
         .unwrap()
         .to_source();
@@ -329,9 +297,9 @@ mod tests {
     #[test]
     fn test_auto_curr_3() {
         let result = execute_sane(
-            r#"let f = fun a b => add(a b) in
-               let my_inc = f(1) in
-               my_inc(2)"#,
+            r#"let f = fun a b => add, a, b in
+               let my_inc = f, 1 in
+               my_inc, 2"#,
         )
         .unwrap()
         .to_source();
@@ -342,8 +310,8 @@ mod tests {
     fn test_auto_curr_4() {
         let result = execute_sane(
             r#"let f = add in
-               let my_inc = f(1) in
-               my_inc(2)"#,
+               let my_inc = f, 1 in
+               my_inc, 2"#,
         )
         .unwrap()
         .to_source();
@@ -353,8 +321,8 @@ mod tests {
     #[test]
     fn test_auto_curr_5() {
         let result = execute_sane(
-            r#"let my_inc = add(1) in
-               my_inc(2)"#,
+            r#"let my_inc = add, 1 in
+               my_inc, 2"#,
         )
         .unwrap()
         .to_source();

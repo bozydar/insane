@@ -1,3 +1,5 @@
+file = { SOI ~ import ~ expression ~ exposition ~ definitions ~ EOI }
+
 newline    = _{ "\n" | "\r\n" }
 WHITESPACE = _{ " " | "\t" | newline }
 block_comment = _{ "/*" ~ (block_comment | !"*/" ~ ANY)* ~ "*/" }
@@ -25,7 +27,6 @@ let_in = { "let" ~ ident_expr ~ ("and" ~ "let" ~ ident_expr)*  ~ "in" ~ expr }
 ident_expr = { ident ~ "=" ~ expr }
 fun = { "fun" ~ args ~ "=>" ~ expr }
 args = { ident+ }
-bind = { (ns_ident | ident | "`" ~ expr ~ "`" ) ~ "(" ~ expr+ ~ ")" }
 
 infix = { term ~ (operator ~ term)+ }
 operator = _{ op_left_pipe | op_right_pipe | op_dollar | op_plus | op_minus | op_star | op_slash | op_eq | op_neq | op_comma }
@@ -46,9 +47,8 @@ field_value = { ident ~ ":" ~ expr }
 if_then_else = { "if" ~ expr ~ "then" ~ expr ~ "else" ~ expr }
 
 expr = _{ infix | let_in | fun | if_then_else | term }
-term = _{  "(" ~ expr ~ ")" | bind | structure | list | ns_ident | ident | constant}
+term = _{  "(" ~ expr ~ ")" | structure | list | ns_ident | ident | constant}
 constant = { number | string_quoted }
-file = { SOI ~ import ~ expression ~ exposition ~ definitions ~ EOI }
 
 exposition = { ("give" ~ "(" ~ ident+ ~ ")" )? }
 import = { ("use" ~ "(" ~ ident+ ~ ")")? }
