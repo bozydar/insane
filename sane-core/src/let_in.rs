@@ -110,6 +110,14 @@ mod tests {
     }
 
     #[test]
+    fn check_type_1() {
+        let result = execute_sane("type_of, (let a: Num = 1 in a)")
+            .unwrap()
+            .to_source();
+        assert_eq!(result, "Num");
+    }
+
+    #[test]
     fn test_execute_let_0() {
         let result = &*execute_sane("let a = 1 in a").unwrap().to_source();
         assert_eq!(result, "1.0");

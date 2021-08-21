@@ -28,6 +28,7 @@ pub fn build_in_functions() -> Scope {
         create_build_in("div".to_string(), sane_div, 2),
         create_build_in("/".to_string(), sane_div, 2),
         create_build_in("print".to_string(), sane_print, 1),
+        create_build_in("type_of".to_string(), sane_type_of, 1),
         // create_build_in("nth".to_string(), sane_nth, 1)
         (
             "true".to_string(),
@@ -295,6 +296,14 @@ fn sane_inc(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
 
 fn sane_print(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
     let params = validate("eq", params, position, vec!["Any"])?;
+
+    let param = params.get(0).unwrap().clone();
+    println!("{:#?}", *param);
+    Ok(param)
+}
+
+fn sane_type_of(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
+    let params = validate("type_of", params, position, vec!["Any"])?;
 
     let param = params.get(0).unwrap().clone();
     println!("{:#?}", *param);

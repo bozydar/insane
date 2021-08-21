@@ -59,15 +59,36 @@ TODO:
   * if the last instruction of function is binding itself -> replace the argument on the stack instead of pushing a new one (and replace all the captured values)
   * if the last instruction of function is binding to another -> replace itself with the called function on the AST and remove parameter?
   https://github.com/0x65/trampoline
-* struct 
+* struct
+  * let user: {
+      ; name: String,
+      ; gender: {
+        | Male: {},  // Unit
+        | Female: {
+          ; hair_color: String 
+        }
+      }
+    }
 * pattern matching
 * types
-  * let map : (Int -> Int) -> \[Int\] -> \[Int\]
-  * let map : (Int>Int>Fn) > (Int>List) > (Int>List) > Fn = fun fn list => ..
+  * let map : {(Int -> String) -> (List, Int) -> (List, String)}
+  * let map : { (Fun, (Fun, Int,  String), (Fun, (List, Int), (List, String)))}
   
 * Garbage collector:
 https://github.com/Others/shredder
-    
+```
+type User = {
+  ; name: String,
+  ; gender: {
+    | Male: {},  // Unit
+    | Female: {
+      ; hair_color: String 
+    }
+  }
+}
+
+```
+
 ```
 type List(Item) = struct 
   def item: Item

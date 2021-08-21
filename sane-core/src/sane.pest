@@ -1,4 +1,4 @@
-file = { SOI ~ import ~ expression ~ exposition ~ definitions ~ EOI }
+file = { SOI ~ import ~ (ttype)* ~ expression ~ exposition ~ definitions ~ EOI }
 
 newline    = _{ "\n" | "\r\n" }
 WHITESPACE = _{ " " | "\t" | newline }
@@ -21,14 +21,15 @@ char = _{
 }
 
 ns_ident = { ident ~ "." ~ ident }
-ident = @{  !(keywords~ WHITESPACE*) ~ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )* }
+ident = @{ !(keywords~ WHITESPACE*) ~ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHANUMERIC | "_" )* }
 
 let_in = { "let" ~ ident_expr ~ ("and" ~ "let" ~ ident_expr)*  ~ "in" ~ expr }
-ident_expr = { ident ~ "=" ~ expr }
+ident_expr = { ident ~ explicit_type_expr? ~ "=" ~ expr }
 fun = { "fun" ~ args ~ "=>" ~ expr }
 args = { ident+ }
+explicit_type_expr = { ":" ~ type_expr }
 
-infix = { term ~ (operator ~ term)+ }
+
 operator = _{ op_left_pipe | op_right_pipe | op_dollar | op_plus | op_minus | op_star | op_slash | op_eq | op_neq | op_comma }
 op_left_pipe = { "|>" }
 op_right_pipe = { "<|" }
@@ -39,7 +40,7 @@ op_star = { "*" }
 op_slash = { "/" }
 op_eq = { "==" }
 op_neq = { "!="}
-op_comma = { ","}
+op_comma = { "," }
 
 list = { "[" ~ expr? ~ (";" ~ expr)* ~ "]" }
 structure = { "{" ~ field_value? ~ (";" ~ field_value)* ~ "}" }
@@ -47,15 +48,33 @@ field_value = { ident ~ ":" ~ expr }
 if_then_else = { "if" ~ expr ~ "then" ~ expr ~ "else" ~ expr }
 
 expr = _{ infix | let_in | fun | if_then_else | term }
+infix = { term ~ (operator ~ term)+ }
 term = _{  "(" ~ expr ~ ")" | structure | list | ns_ident | ident | constant}
 constant = { number | string_quoted }
 
 exposition = { ("give" ~ "(" ~ ident+ ~ ")" )? }
 import = { ("use" ~ "(" ~ ident+ ~ ")")? }
 definitions = { definition* }
+
+ttype = { "type" ~ type_definition }
+type_definition = { ident ~ "=" ~ type_expr  }
+type_expr = { t_infix  | t_term }
+t_term = { "(" ~ type_expr ~ ")" |  complex_type | simple_type }
+t_infix = { t_term ~ (t_operator ~ t_term)+  }
+t_operator = { "," }
+simple_type = { ident | unit }
+unit = { "{" ~ "}" }
+
+complex_type = { "{" ~ (union | record | tuple) ~ "}" }
+tuple = { type_expr ~ (";" ~ type_expr)* }
+record = { ";" ~ record_field ~ (record)* }
+record_field = { ident ~ ":" ~ type_expr  }
+union = { "|" ~ union_constructor ~ (union)* }
+union_constructor = { ident ~ ":" ~ type_expr  }
+
 definition = { "def" ~ ident_expr }
 expression = { expr? }
 
 keywords = {
-  "let" | "fun" | "def" | "and" | "use"  | "give" | "if" | "then" | "else"
+  "let" | "fun" | "def" | "and" | "use"  | "give" | "if" | "then" | "else" | "type"
 }
