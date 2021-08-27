@@ -8,6 +8,7 @@ use crate::parse::{Expr, ExprResult, FromInput, Position, ToSource};
 use std::rc::Rc;
 
 use crate::execute::{execute, Execute, Scope};
+use crate::type_expr::{TypeExpr, Literal, LiteralType};
 
 // TODO: Maybe better put everything into Expr because otherwise problems with converting
 // Results
@@ -255,7 +256,7 @@ impl File {
                 &format!("Can't find definition of `{}`", ident.to_source()),
                 &ident.position,
             )
-            .into()
+                .into()
         }
     }
 }
@@ -270,6 +271,7 @@ fn expr_else_unit(input: Input<'_>, context: &mut Context) -> ExprResult {
         Ok(Rc::new(Expr::Const(Const {
             value: ConstType::Unit,
             position,
+            ttype: Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Unit })),
         })))
     }
 }
@@ -281,6 +283,7 @@ mod tests {
     use crate::execute::{execute_file, execute_sane};
     use crate::parse::parse_file;
     use std::borrow::Borrow;
+    use crate::type_expr::{TypeExpr, Variable};
 
     #[test]
     fn execute_let_in_2() {
@@ -307,8 +310,8 @@ mod tests {
             context,
             scope,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "[1.0; 2.0]");
     }
 
@@ -326,8 +329,8 @@ mod tests {
             context,
             scope,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "[3.0; 5.0]");
     }
 
@@ -344,7 +347,7 @@ mod tests {
             "ADHOC",
             context,
         )
-        .unwrap();
+            .unwrap();
         // dbg!(result);
         // assert_eq!(result, "[1.0; 2.0]");
     }
@@ -362,16 +365,17 @@ mod tests {
             "ADHOC",
             context,
         )
-        .unwrap();
+            .unwrap();
         let ident = Ident {
             label: String::from("a"),
             position: Position::new(0, 0, "a"),
+            ttype: Rc::new(TypeExpr::Variable(Variable { label: String::from("a") })),
         };
         let result = match expr.borrow() {
             Expr::File(file) => file.find_exposed(&ident),
             _ => panic!("{:?} is not a File", expr),
         }
-        .unwrap();
+            .unwrap();
         assert_eq!(result.to_source(), "1.0");
     }
 }

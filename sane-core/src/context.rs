@@ -11,6 +11,8 @@ use std::fs;
 use std::io::prelude::*;
 use std::path;
 use std::rc::Rc;
+use crate::type_expr::TypeExpr;
+use crate::type_expr::Variable;
 
 pub type Path = String;
 
@@ -35,6 +37,7 @@ impl Context {
             let ident = Ident {
                 label: ns_ident.label.clone(),
                 position: ns_ident.position.clone(),
+                ttype: Rc::new(TypeExpr::Variable(Variable { label: ns_ident.label.clone() })),
             };
             (*found_file).find_exposed(&ident)
         } else {

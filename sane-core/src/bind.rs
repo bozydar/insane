@@ -9,6 +9,7 @@ use crate::parse::{Expr, ExprResult, FromInput, Position, Rule, ToSource};
 use pest::iterators::Pairs;
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::type_expr::{TypeExpr, Variable};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Bind {
@@ -20,7 +21,7 @@ pub struct Bind {
 impl ToSource for Bind {
     fn to_source(&self) -> String {
         match &*self.fun {
-            Expr::Ident(_)|Expr::NSIdent(_) => format!(
+            Expr::Ident(_) | Expr::NSIdent(_) => format!(
                 "{}({})",
                 self.fun.to_source(),
                 self.args
@@ -78,8 +79,8 @@ impl Execute for Bind {
                     // println!("{:?}", stack);
                     return Error::new(
                         &format!("It is not a function `{:?}`", current_fun),
-                        position
-                    ).into()
+                        position,
+                    ).into();
                 }
             };
             if current_args.len() > arity {
@@ -92,15 +93,15 @@ impl Execute for Bind {
                     ),
                     position,
                 )
-                .into();
+                    .into();
             }
 
             let diff = arity - current_args.len();
             if diff == 0 {
                 return match &*current_fun {
                     Expr::Fun(Fun {
-                        params, body, env, ..
-                    }) => {
+                                  params, body, env, ..
+                              }) => {
                         // TODO: it is actually bad
                         let env = &mut RefCell::borrow(env).clone();
                         for i in 0..params.len() {
@@ -116,7 +117,7 @@ impl Execute for Bind {
                         &format!("Expr {:?} is not a function", current_fun),
                         position,
                     )
-                    .into(),
+                        .into(),
                 };
             }
 
@@ -131,6 +132,7 @@ impl Execute for Bind {
                     Rc::new(Expr::Ident(Ident {
                         label: param.clone(),
                         position: position.clone(),
+                        ttype: Rc::new(TypeExpr::Variable(Variable { label: param.clone() })),
                     }))
                 })
                 .collect::<Vec<Rc<Expr>>>();
@@ -210,8 +212,8 @@ mod tests {
                  in
                    curr , 2"#,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "false");
     }
 
@@ -222,8 +224,8 @@ mod tests {
                  if eq , a , 10.0 then a else add_till_10 , (inc , a)
                in add_till_10, 0"#,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "10.0");
     }
 
@@ -236,8 +238,8 @@ mod tests {
                  flip , b
                in flip , 0"#,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "10.0");
     }
 
@@ -262,8 +264,8 @@ mod tests {
                     Position { start: 164, end: 165, source: Rc::from("let flip = fun a =>\n                 if eq , a , 10 then a else flop, (inc, a)\n               in let flop = fun b =>\n                 flip, b\n               in flip, 0") },
                     Position { start: 160, end: 167, source: Rc::from("ADHOC") },
                     Position { start: 97, end: 167, source: Rc::from("ADHOC") },
-                    Position { start: 0, end: 167, source: Rc::from("ADHOC") }
-                ]
+                    Position { start: 0, end: 167, source: Rc::from("ADHOC") },
+                ],
             })
         );
     }
@@ -274,8 +276,8 @@ mod tests {
             r#"let f = fun a b c => a
                in f, 1"#,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(
             result,
             "fun $param_0 $param_1 => `fun a b c => a`(1.0 $param_0 $param_1)"
@@ -289,8 +291,8 @@ mod tests {
                in let g = f, 1
                in g, 2, 3"#,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "[1.0; 2.0; 3.0]");
     }
 
@@ -301,8 +303,8 @@ mod tests {
                let my_inc = f, 1 in
                my_inc, 2"#,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "3.0");
     }
 
@@ -313,8 +315,8 @@ mod tests {
                let my_inc = f, 1 in
                my_inc, 2"#,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "3.0");
     }
 
@@ -324,8 +326,8 @@ mod tests {
             r#"let my_inc = add, 1 in
                my_inc, 2"#,
         )
-        .unwrap()
-        .to_source();
+            .unwrap()
+            .to_source();
         assert_eq!(result, "3.0");
     }
 }

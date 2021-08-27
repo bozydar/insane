@@ -21,9 +21,14 @@ use crate::let_in::LetIn;
 use crate::list::List;
 use crate::ns_ident::NSIdent;
 use crate::pest::Parser;
+use crate::type_expr::TypeExpr;
 
 pub trait ToSource {
     fn to_source(&self) -> String;
+}
+
+pub trait Typed {
+    fn get_type(&self) -> Rc<TypeExpr>;
 }
 
 #[derive(Clone)]
@@ -216,6 +221,8 @@ impl FromInput for Expr {
     }
 }
 
+// TODO implement the 4th parameter options: HashMap. The first key could be: output-type: true
+// which could add type during the output
 pub fn parse_file(source: &str, path: &str, context: &mut Context) -> ExprResult {
     let parse_result = SaneParser::parse(Rule::file, source);
     match parse_result {
@@ -337,5 +344,14 @@ mod tests {
                 source: Rc::from("ADHOC"),
             }
         );
+    }
+
+    #[test]
+    fn parse_type_0() {
+        let context = &mut Context::new(vec![]);
+        let result = parse_file("1", "ADHOC", context)
+            .unwrap()
+            .to_source();
+        assert_eq!(result, "Int");
     }
 }

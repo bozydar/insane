@@ -1,8 +1,9 @@
 use crate::context::Context;
 use crate::error::Error;
-use crate::parse::Input;
+use crate::parse::{Input, Typed};
 use crate::parse::{Expr, ExprEq, ExprResult, FromInput, Position, Rule, ToSource};
 use std::rc::Rc;
+use crate::type_expr::{TypeExpr, Literal, LiteralType};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ConstType {
@@ -15,6 +16,7 @@ pub enum ConstType {
 #[derive(Debug, Clone)]
 pub struct Const {
     pub value: ConstType,
+    pub ttype: Rc<TypeExpr>,
     pub position: Position,
 }
 
@@ -23,6 +25,7 @@ impl Const {
         Const {
             value: ConstType::String(value.to_string()),
             position,
+            ttype: Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::String })),
         }
     }
 
@@ -30,6 +33,7 @@ impl Const {
         Const {
             value: ConstType::Numeric(value),
             position,
+            ttype: Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Numeric })),
         }
     }
 
@@ -37,6 +41,7 @@ impl Const {
         Const {
             value: ConstType::Bool(value),
             position,
+            ttype: Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Bool })),
         }
     }
 }
@@ -44,6 +49,12 @@ impl Const {
 impl PartialEq for Const {
     fn eq(&self, other: &Self) -> bool {
         self.value.eq(&other.value)
+    }
+}
+
+impl Typed for Const {
+    fn get_type(&self) -> Rc<TypeExpr> {
+        self.ttype.clone()
     }
 }
 

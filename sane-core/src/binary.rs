@@ -5,6 +5,7 @@ use crate::ident::Ident;
 use crate::parse::{Expr, ExprResult, Position, Rule, ToSource};
 use pest::iterators::Pair;
 use std::rc::Rc;
+use crate::type_expr::{TypeExpr, Variable};
 
 // The binary Expr is done only to allow ToSource() working fine. I could use just Bind expr
 // to make too. Anyway it is important to have: source -> Parser -> source flow working
@@ -168,6 +169,7 @@ impl Execute for Binary {
                 let fun = Rc::new(Expr::Ident(Ident {
                     label: operator.to_source(),
                     position: position.clone(),
+                    ttype:  Rc::new(TypeExpr::Variable(Variable { label: operator.to_source() })),
                 }));
                 Bind {
                     args,

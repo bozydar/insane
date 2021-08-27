@@ -5,12 +5,14 @@ use crate::parse::Input;
 use crate::parse::{Expr, ExprResult, FromInput, Position, Rule, ToSource};
 use pest::iterators::Pairs;
 use std::rc::Rc;
+use crate::type_expr::{TypeExpr, Variable};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NSIdent {
     pub nspace: String,
     pub label: String,
     pub position: Position,
+    pub ttype: TypeExpr,
 }
 
 impl ToSource for NSIdent {
@@ -25,11 +27,13 @@ impl NSIdent {
         let mut inner: Pairs<'_, Rule> = input.into_inner();
         let nspace = inner.next().unwrap().as_str();
         let label = inner.next().unwrap().as_str();
+        let ttype = TypeExpr::Variable(Variable { label: format!("{}.{}", nspace, label) });
 
         Ok(NSIdent {
             nspace: nspace.to_string(),
             label: label.to_string(),
             position,
+            ttype,
         })
     }
 }

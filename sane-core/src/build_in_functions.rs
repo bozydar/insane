@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use crate::build_in::{BuildIn, BuildInFun};
 use crate::execute::Scope;
+use crate::type_expr::{TypeExpr, Variable, Literal, LiteralType};
 
 pub fn build_in_functions() -> Scope {
     let position = Position::new(0, 0, "BUILDIN");
@@ -35,6 +36,7 @@ pub fn build_in_functions() -> Scope {
             Rc::new(Expr::Const(Const {
                 value: ConstType::Bool(true),
                 position: position.clone(),
+                ttype: Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Bool })),
             })),
         ),
         (
@@ -42,6 +44,7 @@ pub fn build_in_functions() -> Scope {
             Rc::new(Expr::Const(Const {
                 value: ConstType::Bool(false),
                 position,
+                ttype: Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Bool })),
             })),
         ),
     ]
@@ -75,6 +78,7 @@ fn sane_count(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         Expr::List(List { items, position }) => Ok(Rc::new(Expr::Const(Const {
             value: ConstType::Numeric(items.len() as f64),
             position: position.clone(),
+            ttype: Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Numeric })),
         }))),
         _ => unreachable!(),
     }
@@ -157,6 +161,7 @@ fn sane_eq(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         Ok(Rc::new(Expr::Const(Const {
             value,
             position: position.clone(),
+            ttype:  Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Bool })),
         })))
     } else {
         unreachable!()
@@ -173,6 +178,7 @@ fn sane_neq(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         Ok(Rc::new(Expr::Const(Const {
             value,
             position: position.clone(),
+            ttype:  Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Bool })),
         })))
     } else {
         unreachable!()
@@ -198,6 +204,7 @@ fn sane_add(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         Ok(Rc::new(Expr::Const(Const {
             value: ConstType::Numeric(left + right),
             position: position.clone(),
+            ttype:  Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Numeric })),
         })))
     } else {
         unreachable!()
@@ -223,6 +230,7 @@ fn sane_sub(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         Ok(Rc::new(Expr::Const(Const {
             value: ConstType::Numeric(left - right),
             position: position.clone(),
+            ttype: Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Numeric })),
         })))
     } else {
         unreachable!()
@@ -248,6 +256,7 @@ fn sane_mul(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         Ok(Rc::new(Expr::Const(Const {
             value: ConstType::Numeric(left * right),
             position: position.clone(),
+            ttype:  Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Numeric })),
         })))
     } else {
         unreachable!()
@@ -273,6 +282,7 @@ fn sane_div(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         Ok(Rc::new(Expr::Const(Const {
             value: ConstType::Numeric(left / right),
             position: position.clone(),
+            ttype:  Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Numeric })),
         })))
     } else {
         unreachable!()
@@ -289,6 +299,7 @@ fn sane_inc(params: Vec<Rc<Expr>>, position: &Position) -> ExprResult {
         }) => Ok(Rc::new(Expr::Const(Const {
             value: ConstType::Numeric(num + 1.0),
             position: position.clone(),
+            ttype: Rc::new(TypeExpr::Literal(Literal { literal_type: LiteralType::Numeric })),
         }))),
         _ => unreachable!(),
     }

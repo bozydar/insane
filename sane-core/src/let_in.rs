@@ -1,15 +1,17 @@
 use crate::context::Context;
 use crate::execute::{execute, Execute, Scope};
-use crate::parse::Input;
+use crate::parse::{Input, Typed};
 use crate::parse::{Expr, ExprResult, FromInput, Position, Rule, ToSource};
 use pest::iterators::Pairs;
 use std::rc::Rc;
+use crate::type_expr::TypeExpr;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct LetIn {
     pub lets: Vec<(String, Rc<Expr>)>,
     pub in_part: Rc<Expr>,
     pub position: Position,
+    // pub ttype: Rc<TypeExpr>
 }
 
 impl ToSource for LetIn {
@@ -23,6 +25,12 @@ impl ToSource for LetIn {
         format!("{} in {}", lets, self.in_part.to_source())
     }
 }
+
+// impl Typed for LetIn {
+//     fn get_type(&self) -> Rc<TypeExpr> {
+//         self.ttype.clone()
+//     }
+// }
 
 impl FromInput for LetIn {
     fn from_input(input: Input<'_>, context: &mut Context) -> ExprResult {
